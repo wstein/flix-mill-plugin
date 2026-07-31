@@ -5,8 +5,8 @@ official `flix.jar` command-line interface from a Mill module.
 
 ## Status
 
-This repository provides a Mill 1.x plugin implementation. It is deliberately
-not published yet; use a local Mill dependency while developing it.
+This repository provides a Mill 1.x plugin implementation, published as
+`com.github.wstein:flix-mill-plugin_mill1_3`. See [Publishing](#publishing).
 
 ## Design
 
@@ -15,9 +15,9 @@ The project-local `flix.jar` is an explicit build input. This matches the
 download `flix.jar` into the project directory, run `java -jar flix.jar init`,
 then run `java -jar flix.jar run`.
 
-The plugin will expose cached checking and packaging tasks and command tasks
-for executing tests, programs, and `init`. It will run each command in the
-Mill module directory, so Flix finds that module's `flix.toml` manifest.
+The plugin exposes cached checking and packaging tasks, and command tasks for
+executing tests, programs, and `init`. Each command runs in the module's Flix
+working directory, so Flix finds that project's `flix.toml` manifest.
 
 ## Use in a Mill build
 
@@ -43,6 +43,17 @@ object app extends FlixModule {
 }
 ```
 
+`flixWorkingDirectory` is a plain `def`, not a task, because Mill's source tasks
+cannot depend on one. Everything the plugin tracks or validates hangs off it, so
+a single override relocates the compiler JAR, the manifest, the source roots,
+and the generated output together:
+
+```scala
+object app extends FlixModule {
+  override def flixWorkingDirectory = moduleDir / "flix"
+}
+```
+
 | Mill task | Flix command |
 | --- | --- |
 | `app.check` | `check` |
@@ -55,12 +66,20 @@ object app extends FlixModule {
 
 `check`, `build`, and `buildPkg` are cached tasks. `test`, `run`, `init`, and
 `flixHelp` are command tasks because they perform user-directed actions. The
-cached tasks track `flix.toml`, `src/`, `test/`, and the compiler JAR; generated
-`build/` and `artifact/` output does not invalidate them. Override
-`flixSourceDirectories` when a project has additional source roots. `build`
-and `buildPkg` return their validated Flix-owned output paths; `buildPkg`
-returns `artifact/<project-directory>.fpkg`. They are not Mill-owned
-`Task.dest` outputs.
+cached tasks track `flix.toml`, `src/`, `test/`, and the compiler JAR; edits to
+generated `build/` and `artifact/` output do not invalidate them. Override
+`flixSourceDirectories` when a project has additional source roots.
+
+`build` and `buildPkg` return their validated Flix-owned output as a `PathRef`
+under the Flix working directory; `buildPkg` returns
+`artifact/<working-directory-name>.fpkg`. Neither is a Mill-owned `Task.dest`
+output. Those `PathRef`s are revalidated when Mill reads a cached result back,
+so removing the output re-runs the task rather than replaying a path to a file
+that is no longer there.
+
+The Flix compiler writes outside `Task.dest`, which Mill's filesystem checker
+normally forbids a task from reading. The plugin suspends that check only to
+compute the signature of output it has just produced itself.
 
 ## Development
 
@@ -77,8 +96,19 @@ To include the real-compiler integration test, download a Flix JAR and run:
 FLIX_JAR=/absolute/path/to/flix.jar mill flixMillPlugin.test
 ```
 
-The integration test creates its project in a temporary directory and does not
-modify the repository.
+Before releasing, run the consumer gate. It publishes the plugin to a throwaway
+repository, resolves it from a separate Mill subprocess, and builds real Flix
+projects against it, so it catches wrong coordinates, POM metadata, or
+meta-build imports that no unit test can see. It requires `FLIX_JAR` and fails
+if the variable is unset, because a gate that quietly passes is worse than none:
+
+```text
+FLIX_JAR=/absolute/path/to/flix.jar mill flixMillPlugin.integration
+```
+
+Both suites create their projects in temporary directories. Neither modifies the
+repository, and the gate publishes to a Mill-owned directory rather than
+`~/.ivy2/local`.
 
 ## Publishing
 
