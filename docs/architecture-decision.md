@@ -53,8 +53,9 @@ downloads for now (consensus 4/4).
    compiles and formatting/linting commands are available.
 2. Implement the `FlixModule` task trait and unit tests. Verify command
    construction, argument forwarding, source tracking, and task outputs.
-3. Add a real Flix example and end-to-end test using a pinned fixture JAR.
-   Verify `check`, `test`, `run`, and `build-pkg` through Mill.
+3. Add a real Flix CLI integration test enabled by an explicit `FLIX_JAR`.
+   Verify `init`, `check`, `test`, `run`, and `build-pkg` against the selected
+   compiler without committing a third-party binary.
 4. Update usage documentation and perform the final quality pass.
 
 ## Future considerations

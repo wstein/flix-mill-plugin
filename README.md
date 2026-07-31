@@ -30,6 +30,15 @@ mill flixMillPlugin.compile
 mill flixMillPlugin.test
 ```
 
+To include the real-compiler integration test, download a Flix JAR and run:
+
+```text
+FLIX_JAR=/absolute/path/to/flix.jar mill flixMillPlugin.test
+```
+
+The integration test creates its project in a temporary directory and does not
+modify the repository.
+
 ## Project notes
 
 See [the architecture decision record](docs/architecture-decision.md) for the
