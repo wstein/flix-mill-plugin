@@ -57,7 +57,10 @@ downloads for now (consensus 4/4).
 3. Add a real Flix CLI integration test enabled by an explicit `FLIX_JAR`.
    Completed: it verifies `init`, `check`, `test`, `run`, and `build-pkg`
    against the selected compiler without committing a third-party binary.
-4. Update usage documentation and perform the final quality pass. Completed.
+4. Add `build` and `flixHelp`, narrow project inputs to the manifest and source
+   roots, and return validated Flix outputs. Completed.
+5. Add owner-approved publication metadata and consumer-build integration
+   coverage. Pending ownership decisions.
 
 ## Future considerations
 

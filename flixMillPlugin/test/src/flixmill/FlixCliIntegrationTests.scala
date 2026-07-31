@@ -19,11 +19,13 @@ object FlixCliIntegrationTests extends TestSuite {
 
       invoke(project, "init", "--yes")
       invoke(project, "check")
+      invoke(project, "build")
       invoke(project, "test")
       invoke(project, "run")
       invoke(project, "build-pkg")
 
-      assert(os.exists(project / "artifact"))
+      assert(os.isDir(project / "build" / "class"))
+      assert(os.isFile(FlixArtifact.packageFile(project / "artifact")))
     } finally os.remove.all(project)
   }
 

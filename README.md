@@ -43,15 +43,18 @@ object app extends FlixModule {
 | Mill task | Flix command |
 | --- | --- |
 | `app.check` | `check` |
+| `app.build` | `build` |
 | `app.test` | `test` |
 | `app.run -- arg` | `run arg` |
 | `app.buildPkg` | `build-pkg` |
 | `app.init` | `init` |
+| `app.flixHelp` | `--help` |
 
-`check` and `buildPkg` are cached tasks. `test`, `run`, and `init` are command
-tasks because they perform user-directed actions. All task inputs include the
-module directory and compiler JAR, so source, manifest, or compiler changes
-invalidate cached work.
+`check`, `build`, and `buildPkg` are cached tasks. `test`, `run`, `init`, and
+`flixHelp` are command tasks because they perform user-directed actions. The
+cached tasks track `flix.toml`, `src/`, `test/`, and the compiler JAR; generated
+`build/` and `artifact/` output does not invalidate them. Override
+`flixSourceDirectories` when a project has additional source roots.
 
 ## Development
 
