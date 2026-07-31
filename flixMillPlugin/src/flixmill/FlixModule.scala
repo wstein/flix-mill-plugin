@@ -44,8 +44,9 @@ trait FlixModule extends Module {
   /** Compile the project and return Flix's generated JVM class directory. */
   def build = Task {
     flixProjectInputs()
-    FlixCommand.execute(flixJavaExecutable(), flixJar().path, flixWorkingDirectory(), "build")
-    val classes = moduleDir / "build" / "class"
+    val projectDirectory = flixWorkingDirectory()
+    FlixCommand.execute(flixJavaExecutable(), flixJar().path, projectDirectory, "build")
+    val classes = projectDirectory / "build" / "class"
     require(os.exists(classes), s"Flix build completed without creating $classes")
     classes
   }
@@ -77,8 +78,9 @@ trait FlixModule extends Module {
   /** Build the project's `.fpkg` artifact in its `artifact/` directory. */
   def buildPkg = Task {
     flixProjectInputs()
-    FlixCommand.execute(flixJavaExecutable(), flixJar().path, flixWorkingDirectory(), "build-pkg")
-    val packageFile = FlixArtifact.packageFile(moduleDir)
+    val projectDirectory = flixWorkingDirectory()
+    FlixCommand.execute(flixJavaExecutable(), flixJar().path, projectDirectory, "build-pkg")
+    val packageFile = FlixArtifact.packageFile(projectDirectory)
     require(os.exists(packageFile), s"Flix build-pkg completed without creating $packageFile")
     packageFile
   }
