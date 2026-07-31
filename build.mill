@@ -36,12 +36,13 @@ object flixMillPlugin extends ScalaModule, PublishModule, ScalafmtModule {
   object integration extends ScalaTests, TestModule.Utest {
     def mvnDeps = Seq(mvn"com.lihaoyi::mill-testkit:$millVersion")
 
+    // `publishLocalTestRepo` publishes into a Mill-owned `Task.dest` repository that the Mill
+    // subprocess resolves through `MILL_USER_TEST_REPO`, so the gate never writes to
+    // `~/.ivy2/local` and can only resolve what this build just published.
     def forkEnv = Task {
-      publishLocalCached()
-      val repositories = Seq("ivy2Local", Task.env.getOrElse("COURSIER_REPOSITORIES", "central"))
       Map(
         "MILL_EXECUTABLE_PATH" -> millExecutable.assembly().path.toString,
-        "COURSIER_REPOSITORIES" -> repositories.mkString("|")
+        "MILL_USER_TEST_REPO" -> publishLocalTestRepo().path.toString
       )
     }
 
