@@ -15,17 +15,23 @@ trait FlixModule extends Module {
     */
   def flixJavaExecutable = Task.Input { Jvm.javaExe }
 
-  /** Project-local Flix compiler JAR. */
-  def flixJar = Task.Source(moduleDir / "flix.jar")
+  /** Directory in which Flix commands execute and locate `flix.toml`.
+    *
+    * Every path the plugin tracks or validates is relative to this directory, so overriding it
+    * moves the compiler JAR, the manifest, the source roots, and the generated output together. It
+    * is a plain `def` rather than a task because Mill's source tasks cannot depend on one.
+    */
+  def flixWorkingDirectory: os.Path = moduleDir
 
-  /** Directory in which Flix commands execute and locate `flix.toml`. */
-  def flixWorkingDirectory = Task { moduleDir }
+  /** Project-local Flix compiler JAR. */
+  def flixJar = Task.Source(flixWorkingDirectory / "flix.jar")
 
   /** Flix manifest. */
-  def flixManifest = Task.Source(moduleDir / "flix.toml")
+  def flixManifest = Task.Source(flixWorkingDirectory / "flix.toml")
 
   /** Standard Flix source roots. Override to track additional project inputs. */
-  def flixSourceDirectories = Task.Sources(moduleDir / "src", moduleDir / "test")
+  def flixSourceDirectories =
+    Task.Sources(flixWorkingDirectory / "src", flixWorkingDirectory / "test")
 
   /** Inputs that invalidate Flix compilation, excluding generated `build/` and `artifact/` files.
     */
@@ -37,14 +43,14 @@ trait FlixModule extends Module {
   /** Type-check the project without running it. */
   def check = Task {
     flixProjectInputs()
-    FlixCommand.execute(flixJavaExecutable(), flixJar().path, flixWorkingDirectory(), "check")
+    FlixCommand.execute(flixJavaExecutable(), flixJar().path, flixWorkingDirectory, "check")
     Task.dest
   }
 
   /** Compile the project and return Flix's generated JVM class directory. */
   def build = Task {
     flixProjectInputs()
-    val projectDirectory = flixWorkingDirectory()
+    val projectDirectory = flixWorkingDirectory
     FlixCommand.execute(flixJavaExecutable(), flixJar().path, projectDirectory, "build")
     val classes = projectDirectory / "build" / "class"
     require(os.exists(classes), s"Flix build completed without creating $classes")
@@ -57,7 +63,7 @@ trait FlixModule extends Module {
     FlixCommand.execute(
       flixJavaExecutable(),
       flixJar().path,
-      flixWorkingDirectory(),
+      flixWorkingDirectory,
       "test",
       args.value
     )
@@ -69,7 +75,7 @@ trait FlixModule extends Module {
     FlixCommand.execute(
       flixJavaExecutable(),
       flixJar().path,
-      flixWorkingDirectory(),
+      flixWorkingDirectory,
       "run",
       args.value
     )
@@ -78,7 +84,7 @@ trait FlixModule extends Module {
   /** Build the project's `.fpkg` artifact in its `artifact/` directory. */
   def buildPkg = Task {
     flixProjectInputs()
-    val projectDirectory = flixWorkingDirectory()
+    val projectDirectory = flixWorkingDirectory
     FlixCommand.execute(flixJavaExecutable(), flixJar().path, projectDirectory, "build-pkg")
     val packageFile = FlixArtifact.packageFile(projectDirectory)
     require(os.exists(packageFile), s"Flix build-pkg completed without creating $packageFile")
@@ -90,7 +96,7 @@ trait FlixModule extends Module {
     FlixCommand.execute(
       flixJavaExecutable(),
       flixJar().path,
-      flixWorkingDirectory(),
+      flixWorkingDirectory,
       "init",
       args.value
     )
@@ -101,7 +107,7 @@ trait FlixModule extends Module {
     FlixCommand.execute(
       flixJavaExecutable(),
       flixJar().path,
-      flixWorkingDirectory(),
+      flixWorkingDirectory,
       "--help",
       args.value
     )

@@ -6,3 +6,8 @@ package build
 import flixmill.FlixModule
 
 object app extends FlixModule
+
+/** Exercises a project whose Flix sources live below the Mill module directory. */
+object nested extends FlixModule {
+  override def flixWorkingDirectory = moduleDir / "flix"
+}

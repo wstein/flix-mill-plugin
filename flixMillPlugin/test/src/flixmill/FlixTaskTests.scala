@@ -14,7 +14,7 @@ object FlixTaskTests extends TestSuite {
 
   object nestedProject extends TestRootModule {
     object app extends FlixModule {
-      override def flixWorkingDirectory = Task { moduleDir / "flix" }
+      override def flixWorkingDirectory = moduleDir / "flix"
     }
 
     lazy val millDiscover = Discover[this.type]
@@ -56,18 +56,23 @@ object FlixTaskTests extends TestSuite {
     }
 
     test("runs Flix in the module directory by default") {
-      UnitTester(defaultProject, os.temp.dir()).scoped { eval =>
-        val workingDirectory = evaluated(eval(defaultProject.flixWorkingDirectory)).value
-
-        assert(workingDirectory == defaultProject.moduleDir)
-      }
+      assert(defaultProject.flixWorkingDirectory == defaultProject.moduleDir)
     }
 
-    test("follows an overridden working directory when locating the package") {
+    test("moves every tracked and generated path with the working directory") {
       UnitTester(nestedProject, os.temp.dir()).scoped { eval =>
-        val workingDirectory = evaluated(eval(nestedProject.app.flixWorkingDirectory)).value
-
+        val workingDirectory = nestedProject.app.flixWorkingDirectory
         assert(workingDirectory == nestedProject.app.moduleDir / "flix")
+
+        val jar = evaluated(eval(nestedProject.app.flixJar)).value
+        val manifest = evaluated(eval(nestedProject.app.flixManifest)).value
+        val sources = evaluated(eval(nestedProject.app.flixSourceDirectories)).value
+
+        // Tracking inputs beside the module while the compiler reads them beside the manifest
+        // would silently stop invalidating the build when a source file changes.
+        assert(jar.path == workingDirectory / "flix.jar")
+        assert(manifest.path == workingDirectory / "flix.toml")
+        assert(sources.map(_.path) == Seq(workingDirectory / "src", workingDirectory / "test"))
         assert(
           FlixArtifact.packageFile(workingDirectory) ==
             workingDirectory / "artifact" / "flix.fpkg"
