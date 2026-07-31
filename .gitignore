@@ -1,0 +1,4 @@
+out/
+.bsp/
+.mill-ammonite/
+.scala-build/

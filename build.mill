@@ -1,0 +1,23 @@
+package build
+
+import mill.*
+import mill.scalalib.*
+import mill.scalalib.scalafmt.*
+
+object flixMillPlugin extends ScalaModule, ScalafmtModule {
+  /** The oldest Mill 1.x version supported by the published plugin artifact. */
+  def millVersion = "1.0.6"
+
+  def scalaVersion = "3.7.4"
+  def jvmVersion = "21"
+  def scalacOptions = Seq("-Werror", "-Wunused:all")
+
+  // Mill 1.x plugins are backwards compatible, but not forwards compatible.
+  def platformSuffix = "_mill1"
+
+  def mvnDeps = Seq(mvn"com.lihaoyi::mill-libs:$millVersion")
+
+  object test extends ScalaTests, TestModule.Utest {
+    def mvnDeps = Seq(mvn"com.lihaoyi::mill-testkit:$millVersion")
+  }
+}
