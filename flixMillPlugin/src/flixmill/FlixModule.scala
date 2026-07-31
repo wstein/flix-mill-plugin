@@ -1,7 +1,7 @@
 package flixmill
 
 import mill.*
-import mill.api.Args
+import mill.api.{Args, FilesystemCheckerEnabled, PathRef}
 import mill.util.Jvm
 
 /** Mill tasks for a Flix project that uses a project-local `flix.jar`. */
@@ -48,7 +48,7 @@ trait FlixModule extends Module {
     FlixCommand.execute(flixJavaExecutable(), flixJar().path, projectDirectory, "build")
     val classes = projectDirectory / "build" / "class"
     require(os.exists(classes), s"Flix build completed without creating $classes")
-    classes
+    FlixArtifact.outputPathRef(classes)
   }
 
   /** Run the project's Flix test suite. */
@@ -82,7 +82,7 @@ trait FlixModule extends Module {
     FlixCommand.execute(flixJavaExecutable(), flixJar().path, projectDirectory, "build-pkg")
     val packageFile = FlixArtifact.packageFile(projectDirectory)
     require(os.exists(packageFile), s"Flix build-pkg completed without creating $packageFile")
-    packageFile
+    FlixArtifact.outputPathRef(packageFile)
   }
 
   /** Initialize a new Flix project in the module directory. */
@@ -135,4 +135,14 @@ private[flixmill] object FlixCommand {
 private[flixmill] object FlixArtifact {
   def packageFile(projectDirectory: os.Path): os.Path =
     projectDirectory / "artifact" / s"${projectDirectory.last}.fpkg"
+
+  /** Signature for Flix-owned output that lives outside `Task.dest`.
+    *
+    * Mill's filesystem checker only lets a task read its own `Task.dest` or an upstream `PathRef`,
+    * so hashing what Flix just wrote into the project directory requires suspending it. The
+    * resulting `PathRef` is revalidated whenever a cached result is read back, so deleting the
+    * output re-runs the task instead of replaying a path to a missing file.
+    */
+  def outputPathRef(path: os.Path): PathRef =
+    FilesystemCheckerEnabled.withValue(false)(PathRef(path).withRevalidateOnce)
 }
