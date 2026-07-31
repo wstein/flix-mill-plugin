@@ -1,5 +1,5 @@
 //| mvnDeps:
-//| - com.github.wstein::flix-mill-plugin::0.1.0
+//| - com.github.wstein::flix-mill-plugin::0.0.0-PLACEHOLDER
 
 package build
 

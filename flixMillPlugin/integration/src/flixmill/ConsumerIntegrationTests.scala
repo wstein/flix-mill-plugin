@@ -9,6 +9,10 @@ import utest.*
   * silent pass here would let broken coordinates, POM metadata, or meta-build imports ship.
   */
 object ConsumerIntegrationTests extends TestSuite {
+
+  /** Version literal in the fixture's `build.mill`, substituted on every run. */
+  private val PlaceholderVersion = "0.0.0-PLACEHOLDER"
+
   def tests = Tests {
     test("loads the published plugin and builds a Flix project") {
       val jarPath = sys.env.getOrElse(
@@ -30,6 +34,13 @@ object ConsumerIntegrationTests extends TestSuite {
     // `close` removes the process-id file that tells the spawned Mill daemon to exit; without it
     // every run, including a failing one, leaks a daemon JVM holding the workspace.
     try {
+      // The fixture carries a placeholder so it can never resolve a leftover build of some other
+      // version; every run exercises exactly what this build published.
+      tester.modifyFile(
+        tester.workspacePath / "build.mill",
+        _.replace(PlaceholderVersion, sys.env("MILL_PLUGIN_VERSION"))
+      )
+
       val project = tester.workspacePath / "app"
       os.copy.over(os.Path(jarPath, os.pwd), project / "flix.jar", createFolders = true)
 
