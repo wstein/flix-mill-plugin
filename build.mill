@@ -2,9 +2,10 @@ package build
 
 import mill.*
 import mill.scalalib.*
+import mill.scalalib.publish.*
 import mill.scalalib.scalafmt.*
 
-object flixMillPlugin extends ScalaModule, ScalafmtModule {
+object flixMillPlugin extends ScalaModule, PublishModule, ScalafmtModule {
   /** The oldest Mill 1.x version supported by the published plugin artifact. */
   def millVersion = "1.0.6"
 
@@ -17,7 +18,36 @@ object flixMillPlugin extends ScalaModule, ScalafmtModule {
 
   def mvnDeps = Seq(mvn"com.lihaoyi::mill-libs:$millVersion")
 
+  def artifactName = "flix-mill-plugin"
+  def publishVersion = "0.1.0"
+  def pomSettings = PomSettings(
+    description = "Flix compiler support for Mill",
+    organization = "com.github.wstein",
+    url = "https://github.com/wstein/flix-mill-plugin",
+    licenses = Seq(License.`Apache-2.0`),
+    versionControl = VersionControl.github("wstein", "flix-mill-plugin"),
+    developers = Seq(Developer("wstein", "Werner Stein", "https://github.com/wstein"))
+  )
+
   object test extends ScalaTests, TestModule.Utest {
     def mvnDeps = Seq(mvn"com.lihaoyi::mill-testkit:$millVersion")
+  }
+
+  object integration extends ScalaTests, TestModule.Utest {
+    def mvnDeps = Seq(mvn"com.lihaoyi::mill-testkit:$millVersion")
+
+    def forkEnv = Task {
+      publishLocalCached()
+      val repositories = Seq("ivy2Local", Task.env.getOrElse("COURSIER_REPOSITORIES", "central"))
+      Map(
+        "MILL_EXECUTABLE_PATH" -> millExecutable.assembly().path.toString,
+        "COURSIER_REPOSITORIES" -> repositories.mkString("|")
+      )
+    }
+
+    object millExecutable extends JavaModule {
+      def mvnDeps = Seq(mvn"com.lihaoyi:mill-runner-launcher_3:$millVersion")
+      def mainClass = Some("mill.launcher.MillLauncherMain")
+    }
   }
 }

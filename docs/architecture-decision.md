@@ -64,6 +64,56 @@ downloads for now (consensus 4/4).
 
 ## Future considerations
 
-An opt-in, pinned compiler resolver and a publication module are reasonable
-enhancements once artifact-version and ownership policy are agreed. Neither is
-required for correctness of the project-local Flix workflow.
+An opt-in, pinned compiler resolver is a reasonable enhancement. Publication
+metadata is configured for local Ivy publication; remote-release credentials
+and repository deployment are intentionally outside this build's scope.
+
+## Output semantics review
+
+### Mill task purist — introduce `compile` (6/10)
+
+Mill users expect a `compile` target, and `mill-kotlin` can provide one because
+it owns JVM compilation and returns Mill's `CompilationResult`. The proposal is
+to map `compile` to Flix `build`. This would make task discovery familiar, but
+would falsely imply that downstream Mill modules can consume Zinc analysis,
+classpath, and classes using the normal JVM-module contract.
+
+### Flix tooling engineer — preserve `build` (10/10)
+
+Flix documents `check` as the faster validation command and `build` as the
+bytecode-generating command. The observed compiler output is `build/class`.
+The plugin should expose those names directly and return the validated Flix
+output path, not a fabricated Mill compilation result. `build-pkg` writes
+`artifact/<project-directory>.fpkg`; the name is based on the project directory,
+not `[package].name`. A fresh compiler fixture verified both facts.
+
+### Mill sandbox maintainer — do not return `PathRef` (9/10)
+
+`PathRef` hashes its path. Mill rightfully rejects that read when a Flix
+subprocess creates `build/` or `artifact/` outside `Task.dest`; neither is a
+declared input. Returning validated `os.Path` values accurately represents
+Flix-owned outputs and avoids self-invalidating generated directories.
+
+### Release engineer — publish early, but test the published artifact (9/10)
+
+Apache-2.0, `com.github.wstein`, version `0.1.0`, and the GitHub repository are
+now explicit publication metadata. A consumer test must resolve the local Ivy
+publication in a new Mill subprocess; direct trait tests would not detect
+incorrect coordinates, POM metadata, or meta-build imports.
+
+### Test engineer — make output names regression-tested (8/10)
+
+The initial assumption that `build-pkg` creates `project.fpkg` was plausible
+from generic documentation but failed against a real project named `app`.
+The tests now cover CLI initialization plus build, test, run, package, and the
+locally published consumer build. The observed filename rule should be retested
+when Flix is upgraded.
+
+## Consensus
+
+Keep `check` and `build` as the public compilation-oriented API; defer
+`compile` until Flix can supply a true Mill-native compilation model. Return
+validated Flix-owned paths rather than `PathRef`s. Publish locally under the
+approved Apache-2.0 metadata and require a consumer subprocess test in the
+release gate. The package filename convention is an observed Flix 0.75.1
+contract, not a permanent assumption.

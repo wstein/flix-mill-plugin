@@ -1,13 +1,13 @@
 package flixmill
 
 import mill.*
-import mill.api.{Args, PathRef}
+import mill.api.Args
 
 /** Mill tasks for a Flix project that uses a project-local `flix.jar`. */
 trait FlixModule extends Module {
 
   /** Java executable used to launch the Flix compiler. */
-  def flixJavaExecutable = Task { "java" }
+  def flixJavaExecutable = Task { (os.Path(sys.props("java.home")) / "bin" / "java").toString }
 
   /** Project-local Flix compiler JAR. */
   def flixJar = Task.Source(moduleDir / "flix.jar")
@@ -32,7 +32,7 @@ trait FlixModule extends Module {
   def check = Task {
     flixProjectInputs()
     FlixCommand.execute(flixJavaExecutable(), flixJar().path, flixWorkingDirectory(), "check")
-    PathRef(Task.dest)
+    Task.dest
   }
 
   /** Compile the project and return Flix's generated JVM class directory. */
@@ -41,7 +41,7 @@ trait FlixModule extends Module {
     FlixCommand.execute(flixJavaExecutable(), flixJar().path, flixWorkingDirectory(), "build")
     val classes = moduleDir / "build" / "class"
     require(os.exists(classes), s"Flix build completed without creating $classes")
-    PathRef(classes)
+    classes
   }
 
   /** Run the project's Flix test suite. */
@@ -72,7 +72,9 @@ trait FlixModule extends Module {
   def buildPkg = Task {
     flixProjectInputs()
     FlixCommand.execute(flixJavaExecutable(), flixJar().path, flixWorkingDirectory(), "build-pkg")
-    PathRef(FlixArtifact.packageFile(moduleDir / "artifact"))
+    val packageFile = FlixArtifact.packageFile(moduleDir)
+    require(os.exists(packageFile), s"Flix build-pkg completed without creating $packageFile")
+    packageFile
   }
 
   /** Initialize a new Flix project in the module directory. */
@@ -123,17 +125,6 @@ private[flixmill] object FlixCommand {
 }
 
 private[flixmill] object FlixArtifact {
-  def packageFile(artifactDirectory: os.Path): os.Path = {
-    val packages =
-      if (os.isDir(artifactDirectory)) os.list(artifactDirectory).filter(_.ext == "fpkg")
-      else Seq.empty
-
-    packages match {
-      case Seq(file) => file
-      case Seq()     =>
-        throw new IllegalStateException(s"Flix did not create an .fpkg file in $artifactDirectory")
-      case _ =>
-        throw new IllegalStateException(s"Flix created multiple .fpkg files in $artifactDirectory")
-    }
-  }
+  def packageFile(projectDirectory: os.Path): os.Path =
+    projectDirectory / "artifact" / s"${projectDirectory.last}.fpkg"
 }

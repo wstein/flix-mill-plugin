@@ -1,0 +1,8 @@
+//| mvnDeps:
+//| - com.github.wstein::flix-mill-plugin::0.1.0
+
+package build
+
+import flixmill.FlixModule
+
+object app extends FlixModule

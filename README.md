@@ -21,10 +21,13 @@ Mill module directory, so Flix finds that module's `flix.toml` manifest.
 
 ## Use in a Mill build
 
-After adding this library to your build's meta-build dependencies, import the
-trait and extend it from the module that is the root of the Flix project:
+Add the plugin to your build's meta-build dependencies, import the trait, and
+extend it from the module that is the root of the Flix project:
 
 ```scala
+//| mvnDeps:
+//| - com.github.wstein::flix-mill-plugin::0.1.0
+
 import flixmill.FlixModule
 
 object app extends FlixModule
@@ -54,7 +57,10 @@ object app extends FlixModule {
 `flixHelp` are command tasks because they perform user-directed actions. The
 cached tasks track `flix.toml`, `src/`, `test/`, and the compiler JAR; generated
 `build/` and `artifact/` output does not invalidate them. Override
-`flixSourceDirectories` when a project has additional source roots.
+`flixSourceDirectories` when a project has additional source roots. `build`
+and `buildPkg` return their validated Flix-owned output paths; `buildPkg`
+returns `artifact/<project-directory>.fpkg`. They are not Mill-owned
+`Task.dest` outputs.
 
 ## Development
 
@@ -76,11 +82,15 @@ modify the repository.
 
 ## Publishing
 
-Publication coordinates are intentionally not configured. A release needs an
-owner-approved organization, repository URL, license, and version policy. Once
-those are set, add `PublishModule` metadata and publish an artifact with the
-`_mill1` platform suffix; the implementation already compiles against Mill
-1.0.6 for Mill 1.x compatibility.
+The plugin is Apache-2.0 licensed and publishes as
+`com.github.wstein:flix-mill-plugin_mill1_3:0.1.0`. Publish locally with:
+
+```text
+mill flixMillPlugin.publishLocal
+```
+
+The artifact uses the `_mill1` platform suffix and compiles against Mill 1.0.6
+for Mill 1.x compatibility.
 
 ## Project notes
 
