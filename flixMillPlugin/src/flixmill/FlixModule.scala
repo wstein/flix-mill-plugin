@@ -2,12 +2,18 @@ package flixmill
 
 import mill.*
 import mill.api.Args
+import mill.util.Jvm
 
 /** Mill tasks for a Flix project that uses a project-local `flix.jar`. */
 trait FlixModule extends Module {
 
-  /** Java executable used to launch the Flix compiler. */
-  def flixJavaExecutable = Task { (os.Path(sys.props("java.home")) / "bin" / "java").toString }
+  /** Java executable used to launch the Flix compiler.
+    *
+    * Resolved on every run rather than cached, so upgrading or moving the JDK cannot leave a stale
+    * absolute path behind. `Jvm.javaExe` appends the platform's executable suffix and falls back to
+    * a `PATH` lookup when `java.home` holds no `java` binary.
+    */
+  def flixJavaExecutable = Task.Input { Jvm.javaExe }
 
   /** Project-local Flix compiler JAR. */
   def flixJar = Task.Source(moduleDir / "flix.jar")

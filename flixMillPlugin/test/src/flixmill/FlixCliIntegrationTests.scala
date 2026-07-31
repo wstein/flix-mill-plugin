@@ -1,5 +1,6 @@
 package flixmill
 
+import mill.util.Jvm
 import utest.*
 
 /** Integration coverage for the official compiler, enabled with `FLIX_JAR`. */
@@ -29,6 +30,7 @@ object FlixCliIntegrationTests extends TestSuite {
     } finally os.remove.all(project)
   }
 
+  // Mirrors `FlixModule.flixJavaExecutable`, so this exercises the plugin's own JVM resolution.
   private def invoke(project: os.Path, command: String*): Unit =
-    FlixCommand.execute("java", project / "flix.jar", project, command.head, command.tail)
+    FlixCommand.execute(Jvm.javaExe, project / "flix.jar", project, command.head, command.tail)
 }
