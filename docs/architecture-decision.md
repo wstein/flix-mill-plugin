@@ -211,7 +211,7 @@ unset. That only matters if something sets the variable. CI downloads a Flix
 release into the runner's temporary directory and exports it, so both the
 real-compiler suite and the publish-resolve-build gate execute on every push.
 
-The download pins `v0.75.1` rather than `releases/latest`. This is the same
+The download pins one release rather than `releases/latest`. This is the same
 reasoning that kept automatic downloads out of the plugin, applied to the
 workflow: the `artifact/<project-directory>.fpkg` naming rule the plugin depends
 on is an observed contract of that release, and a floating URL would turn an
