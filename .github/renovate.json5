@@ -1,0 +1,77 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: ['config:recommended'],
+  timezone: 'Europe/Berlin',
+  schedule: ['before 6am on monday'],
+  semanticCommits: 'enabled',
+  semanticCommitType: 'chore',
+  semanticCommitScope: 'deps',
+  dependencyDashboard: true,
+
+  // Renovate has no Mill manager, so every Mill-specific version this repository
+  // pins is matched by hand below. Each entry groups all files holding the same
+  // version under one dependency name, so an upgrade arrives as a single pull
+  // request that leaves nothing behind to update manually.
+  customManagers: [
+    {
+      // `.mill-version` selects the Mill the bootstrap scripts download; the
+      // `DEFAULT_MILL_VERSION` constants only apply when that file is absent.
+      // They are kept in step so the three never disagree about which Mill this
+      // repository targets. A Mill release that changes the bootstrap scripts
+      // themselves still needs `./mill updateMillScripts <version>`.
+      customType: 'regex',
+      managerFilePatterns: ['/^\\.mill-version$/', '/^mill$/', '/^mill\\.bat$/'],
+      matchStrings: [
+        '^(?<currentValue>\\d+\\.\\d+\\.\\d+)\\s',
+        'DEFAULT_MILL_VERSION="(?<currentValue>[^"]+)"',
+        'set "DEFAULT_MILL_VERSION=(?<currentValue>[^"]+)"',
+      ],
+      depNameTemplate: 'com-lihaoyi/mill',
+      datasourceTemplate: 'github-releases',
+      versioningTemplate: 'semver',
+    },
+    {
+      // The Flix release CI builds against, plus the two places the README
+      // states it. Bumping the compiler is exactly the change the consumer gate
+      // exists to police, so let the pull request's own CI run decide whether
+      // the `artifact/<project-directory>.fpkg` naming rule still holds.
+      customType: 'regex',
+      managerFilePatterns: ['/^\\.github/workflows/ci\\.yml$/', '/^README\\.md$/'],
+      matchStrings: [
+        'FLIX_VERSION: (?<currentValue>\\d+\\.\\d+\\.\\d+)',
+        'badge/Flix-(?<currentValue>\\d+\\.\\d+\\.\\d+)-',
+        'tested against Flix (?<currentValue>\\d+\\.\\d+\\.\\d+)',
+      ],
+      depNameTemplate: 'flix/flix',
+      datasourceTemplate: 'github-releases',
+      versioningTemplate: 'semver',
+      extractVersionTemplate: '^v(?<version>.+)$',
+    },
+    {
+      // Only `scalaVersion` is tracked here. `millVersion` in the same file is
+      // the oldest Mill 1.x the published artifact supports, not a dependency to
+      // keep current; raising it would silently drop support for older Mill 1.x
+      // consumers, so it stays a deliberate manual decision.
+      customType: 'regex',
+      managerFilePatterns: ['/^build\\.mill$/'],
+      matchStrings: ['def scalaVersion = "(?<currentValue>[^"]+)"'],
+      depNameTemplate: 'org.scala-lang:scala3-library_3',
+      datasourceTemplate: 'maven',
+      versioningTemplate: 'maven',
+    },
+  ],
+
+  packageRules: [
+    {
+      // Routine action bumps arrive as one pull request rather than several.
+      matchManagers: ['github-actions'],
+      groupName: 'github-actions',
+    },
+    {
+      // `runs-on: ubuntu-latest` is deliberate: this build has no dependency on
+      // a specific image, so pinning the runner would only add churn.
+      matchManagers: ['github-runners'],
+      enabled: false,
+    },
+  ],
+}
