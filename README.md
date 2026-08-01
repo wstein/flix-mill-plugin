@@ -179,16 +179,63 @@ the version they default to, still needs `./mill updateMillScripts <version>`.
 ## Publishing
 
 The plugin is Apache-2.0 licensed and publishes as
-`io.github.wstein:flix-mill-plugin_mill1_3:0.1.0`:
+`io.github.wstein:flix-mill-plugin_mill1_3`. The artifact uses the `_mill1`
+platform suffix and compiles against Mill 1.0.6 for Mill 1.x compatibility,
+while the build itself uses the current stable Mill release.
+
+To publish locally, into a repository Mill's default resolvers search:
 
 ```text
 ./mill flixMillPlugin.publishLocal
 ```
 
-The artifact uses the `_mill1` platform suffix and compiles against Mill 1.0.6
-for Mill 1.x compatibility, while the build itself uses the current stable Mill
-release. Remote-release credentials and repository deployment are not yet
-configured, so `0.1.0` exists only where it has been published locally.
+### Releasing to Maven Central
+
+Releases go out from a tag.
+[The release workflow](.github/workflows/release.yml) refuses to run from a
+branch, and refuses a tag that disagrees with
+`publishVersion`, because **Maven Central publications are immutable** — a
+version that goes out wrong cannot be withdrawn, only superseded.
+
+```text
+# 1. set publishVersion in build.mill, commit
+# 2. tag and push
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The workflow then re-runs the consumer gate, signs the artifacts, and uploads a
+bundle to the Central portal. It stops there: `sonatypeCentralShouldRelease` is
+`false`, so the deployment waits at `VALIDATED` until you press Publish at
+[central.sonatype.com](https://central.sonatype.com). A deployment that has not
+been published yet can still be dropped.
+
+One-time setup, none of which lives in this repository:
+
+1. Sign in to [central.sonatype.com](https://central.sonatype.com) **with the
+   GitHub account that owns this repository**. That usually provisions the
+   `io.github.<user>` namespace automatically; otherwise register it and verify
+   by creating a public repository named after the verification key.
+2. Generate a user token under
+   [central.sonatype.com/usertoken](https://central.sonatype.com/usertoken).
+   It is a username/password pair, not your login, and it expires.
+3. Create a PGP key and send the public half to `keyserver.ubuntu.com`. Sign
+   with the **primary** key — Central cannot verify a signature made by a
+   signing subkey.
+4. Store four repository secrets: `MILL_SONATYPE_USERNAME`,
+   `MILL_SONATYPE_PASSWORD`, `MILL_PGP_SECRET_BASE64` (the ASCII-armored secret
+   key, base64-encoded to a single line), and `MILL_PGP_PASSPHRASE`.
+
+Mill 1.x signs in process rather than shelling out to `gpg`, so
+`MILL_PGP_SECRET_BASE64` is required — publishing fails outright without it.
+`./mill mill.javalib.SonatypeCentralPublishModule/initGpgKeys` will generate the
+key, upload it, and print the values to store.
+
+To rehearse the whole path without uploading anything, publish to a local
+directory instead:
+
+```text
+MILL_TESTS_PUBLISH_DRY_RUN=1 ./mill flixMillPlugin.publishSonatypeCentral
+```
 
 ## Project notes
 

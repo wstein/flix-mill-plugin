@@ -70,13 +70,12 @@ downloads for now (consensus 4/4).
    Completed: see
    [Continuous integration review](#continuous-integration-review).
 
+8. Move the namespace and publish to Maven Central from a tag. Completed: see
+   [Publication review](#publication-review).
+
 ## Future considerations
 
-An opt-in, pinned compiler resolver is a reasonable enhancement. Publication
-metadata is configured for local publication; remote-release credentials and
-repository deployment are intentionally outside this build's scope. A release
-workflow that publishes on a tag is the natural next step once those
-credentials exist.
+An opt-in, pinned compiler resolver is a reasonable enhancement.
 
 ## Output semantics review
 
@@ -260,3 +259,66 @@ real-compiler suite and the consumer gate against a pinned Flix release. Use
 Renovate rather than Dependabot, with custom managers covering every version
 this repository pins and explicit exclusions for the two that must not float
 (4/4).
+
+## Publication review
+
+Phase 5 approved publication metadata without checking whether the namespace it
+chose could ever be published. This review corrects that and takes the project
+to a real release path.
+
+### Release engineer — reversed: the namespace had to move (10/10)
+
+`com.github.wstein` was unpublishable. Sonatype stopped accepting `com.github.*`
+in April 2021, on GitHub's own request, and there is no route to verify it: the
+portal checks for a DNS TXT record on the exact domain, which here means
+`github.com`. The supported form for a publisher without a domain is
+`io.github.<user>`, verified against the GitHub account that already owns the
+repository.
+
+The cost of finding this late would have been unbounded. Maven Central
+publications are immutable — a wrong group ID cannot be withdrawn, only
+orphaned and superseded. Because nothing had been published remotely, the fix
+was a rename across four files plus the consumer gate re-running. The same
+mistake discovered one release later would have been permanent.
+
+`de.wstein`, verified by a TXT record on a domain the author controls, was the
+alternative. `io.github.wstein` was chosen for having no DNS dependency and no
+renewal risk.
+
+### Build engineer — `publish` was already the wrong task (9/10)
+
+The `publish` task inherited from `PublishModule` targets legacy OSSRH, which
+Sonatype retired; Mill's own documentation for the task says to use Sonatype
+Central publishing instead. The module therefore extends
+`SonatypeCentralPublishModule`. Nothing else in the build changes: the POM Mill
+already generated satisfies every field Central validates, and sources and
+Scaladoc jars are produced without configuration.
+
+### Release engineer — a tag is a claim that must be checked (9/10)
+
+`publishVersion` is a literal in `build.mill` while the release is triggered by
+a tag, so the two can disagree. Deriving the version from the tag with
+`VcsVersionModule` would remove the divergence but make every local build carry
+a commit-distance suffix. The workflow instead refuses to run from anything but
+a tag, and refuses a tag whose name does not match `publishVersion`. Given
+immutability, failing loudly before upload is worth more than the convenience.
+
+The workflow re-runs the consumer gate before uploading even though CI already
+ran it on the same commit. A tag can point at a commit CI never saw, and this is
+the last point at which a mistake is still free.
+
+### Release engineer — upload, then stop (8/10)
+
+`sonatypeCentralShouldRelease` is false, so a release uploads a signed bundle
+and leaves it at `VALIDATED` for a human to publish. A deployment in that state
+can still be dropped; one that has been published cannot. Automating the final
+click would trade a few seconds against the only remaining chance to inspect
+what is about to become permanent.
+
+## Publication consensus
+
+Publish under `io.github.wstein` through the Central portal using
+`SonatypeCentralPublishModule`. Gate releases on a tag that matches
+`publishVersion` and on the consumer gate, and stop at an uploaded bundle rather
+than releasing automatically. This supersedes the `com.github.wstein` coordinate
+approved in phase 5 (4/4).

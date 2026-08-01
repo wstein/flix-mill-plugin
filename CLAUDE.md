@@ -14,6 +14,7 @@ or JDK install is assumed.
 ./mill flixMillPlugin.test.testOnly flixmill.FlixTaskTests          # one suite
 ./mill flixMillPlugin.test 'flixmill.FlixTaskTests.runs Flix in the module directory by default'
 ./mill flixMillPlugin.publishLocal                  # -> ~/.ivy2/local
+MILL_TESTS_PUBLISH_DRY_RUN=1 ./mill flixMillPlugin.publishSonatypeCentral
 ```
 
 The two suites that need a real compiler take a `FLIX_JAR` pointing at a
@@ -95,6 +96,14 @@ Generated `build/` and `artifact/` are deliberately not inputs.
 artifact supports (with `platformSuffix = "_mill1"`), and is not the same thing
 as `.mill-version`, which is what this repo builds with. Never "update" it as if
 it were a dependency — raising it drops consumers.
+
+`publishVersion` is a literal, and `.github/workflows/release.yml` refuses a tag
+that disagrees with it. Bump the literal and tag the same version, or the
+release fails before uploading — which is the point, because **Maven Central
+publications are immutable**. The namespace is `io.github.wstein`;
+`com.github.*` is unpublishable and was moved off for that reason. Never
+weaken the tag check or set `sonatypeCentralShouldRelease` to true without
+being asked: together they are the last chance to inspect a permanent release.
 
 Renovate (`.github/renovate.json5`) keeps the rest current, grouping every file
 that states a version under one dependency so upgrades are never half-applied:
