@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# Never publish two releases at once, and never cancel one part-way: a cancelled
+# upload can leave a deployment stranded in the Central portal.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_COLOR: '1'
+  FLIX_VERSION: 0.75.1
+
+jobs:
+  publish:
+    name: Publish to Maven Central
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Cache Mill and Coursier downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/mill
+            ~/.cache/coursier
+          key: mill-${{ runner.os }}-${{ hashFiles('.mill-version', 'build.mill') }}
+          restore-keys: mill-${{ runner.os }}-
+
+      # Maven Central publications are immutable, so the tag and the version the
+      # build would publish must agree before anything is uploaded. Running from
+      # a branch is refused outright rather than guessing a version.
+      - name: Require a tag matching publishVersion
+        run: |
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "Release must run from a tag; got ${GITHUB_REF_TYPE} ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+          version="$(./mill show flixMillPlugin.publishVersion | tr -d '"')"
+          if [ "${GITHUB_REF_NAME#v}" != "${version}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match publishVersion ${version}" >&2
+            exit 1
+          fi
+          echo "Publishing ${version} from ${GITHUB_REF_NAME}"
+
+      - name: Download Flix ${{ env.FLIX_VERSION }}
+        run: |
+          curl --fail --location --silent --show-error \
+            --output "${RUNNER_TEMP}/flix.jar" \
+            "https://github.com/flix/flix/releases/download/v${FLIX_VERSION}/flix.jar"
+
+      # The consumer gate is the last thing standing between a mistake and a
+      # permanent coordinate, so it runs again here even though CI already ran it.
+      - name: Run the consumer gate
+        env:
+          FLIX_JAR: ${{ runner.temp }}/flix.jar
+        run: ./mill flixMillPlugin.test + flixMillPlugin.integration
+
+      # Uploads a signed bundle and stops. `sonatypeCentralShouldRelease` is false,
+      # so the deployment waits in the portal until a human publishes it.
+      - name: Upload the signed bundle to the Central portal
+        env:
+          MILL_SONATYPE_USERNAME: ${{ secrets.MILL_SONATYPE_USERNAME }}
+          MILL_SONATYPE_PASSWORD: ${{ secrets.MILL_SONATYPE_PASSWORD }}
+          MILL_PGP_SECRET_BASE64: ${{ secrets.MILL_PGP_SECRET_BASE64 }}
+          MILL_PGP_PASSPHRASE: ${{ secrets.MILL_PGP_PASSPHRASE }}
+        run: ./mill flixMillPlugin.publishSonatypeCentral

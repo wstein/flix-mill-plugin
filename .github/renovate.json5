@@ -36,7 +36,7 @@
       // exists to police, so let the pull request's own CI run decide whether
       // the `artifact/<project-directory>.fpkg` naming rule still holds.
       customType: 'regex',
-      managerFilePatterns: ['/^\\.github/workflows/ci\\.yml$/', '/^README\\.md$/'],
+      managerFilePatterns: ['/^\\.github/workflows/[^/]+\\.yml$/', '/^README\\.md$/'],
       matchStrings: [
         'FLIX_VERSION: (?<currentValue>\\d+\\.\\d+\\.\\d+)',
         'badge/Flix-(?<currentValue>\\d+\\.\\d+\\.\\d+)-',
