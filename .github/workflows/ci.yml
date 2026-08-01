@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Mill colourises its output only when it believes a terminal is attached.
+  FORCE_COLOR: '1'
+  # The Flix release the consumer gate builds against. The `.fpkg` naming rule the
+  # plugin relies on is an observed contract of this release, so the version is
+  # pinned rather than tracking `releases/latest`.
+  FLIX_VERSION: 0.75.1
+
+jobs:
+  build:
+    name: Format, compile, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Cache Mill and Coursier downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/mill
+            ~/.cache/coursier
+          key: mill-${{ runner.os }}-${{ hashFiles('.mill-version', 'build.mill') }}
+          restore-keys: mill-${{ runner.os }}-
+
+      # No `setup-java` step: the `./mill` bootstrap script provisions both Mill and
+      # the JDK that `jvmVersion` in `build.mill` asks for.
+      - name: Check formatting, compile, and run unit tests
+        run: ./mill flixMillPlugin.checkFormat + flixMillPlugin.compile + flixMillPlugin.test
+
+  flix:
+    name: Real-compiler and consumer gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Cache Mill and Coursier downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/mill
+            ~/.cache/coursier
+          key: mill-${{ runner.os }}-${{ hashFiles('.mill-version', 'build.mill') }}
+          restore-keys: mill-${{ runner.os }}-
+
+      - name: Download Flix ${{ env.FLIX_VERSION }}
+        run: |
+          curl --fail --location --silent --show-error \
+            --output "${RUNNER_TEMP}/flix.jar" \
+            "https://github.com/flix/flix/releases/download/v${FLIX_VERSION}/flix.jar"
+
+      # With `FLIX_JAR` set, the unit suite additionally exercises the real compiler,
+      # and the consumer gate publishes the plugin and resolves it from a subprocess.
+      - name: Run the real-compiler suite and the consumer gate
+        env:
+          FLIX_JAR: ${{ runner.temp }}/flix.jar
+        run: ./mill flixMillPlugin.test + flixMillPlugin.integration
