@@ -66,12 +66,17 @@ downloads for now (consensus 4/4).
 6. Correct JVM resolution, output signatures, and working-directory handling,
    and make the consumer gate non-optional. Completed: see
    [Output signature review](#output-signature-review).
+7. Run both suites on every push and keep the workflow's own dependencies
+   current. Completed: see
+   [Continuous integration review](#continuous-integration-review).
 
 ## Future considerations
 
 An opt-in, pinned compiler resolver is a reasonable enhancement. Publication
 metadata is configured for local publication; remote-release credentials and
-repository deployment are intentionally outside this build's scope.
+repository deployment are intentionally outside this build's scope. A release
+workflow that publishes on a tag is the natural next step once those
+credentials exist.
 
 ## Output semantics review
 
@@ -168,7 +173,7 @@ Publication moved from `~/.ivy2/local` to `publishLocalTestRepo`, reached throug
 `MILL_USER_TEST_REPO`, so the gate cannot write outside the build or resolve a
 leftover artifact; the fixture carries a placeholder version substituted per run.
 
-### Test engineer — assert behaviour, not the implementation (8/10)
+### Test engineer — assert behavior, not the implementation (8/10)
 
 The package-path test restated its implementation character for character and
 could never fail meaningfully. Coverage now targets what can break: the signature
@@ -183,3 +188,56 @@ filesystem checker only to sign output the task just produced. Derive every
 tracked and generated path from `flixWorkingDirectory`. Keep the consumer test as
 a release gate that fails rather than abstains, publishing to a throwaway
 repository. This supersedes the "do not return `PathRef`" position above (4/4).
+
+## Continuous integration review
+
+Phases 1 to 6 left the build verifiable but unverified: every command was run by
+hand. This review decides how the repository runs them itself.
+
+### Build engineer — bootstrap scripts, not a setup action (9/10)
+
+A `setup-mill`-style action is one line shorter, but it introduces a third-party
+step that must itself be kept current and that decides which Mill version to
+install. Mill's own `mill` and `mill.bat` bootstrap scripts read `.mill-version`
+and provision the JDK named by `jvmVersion`, so the workflow needs no
+`setup-java` step and CI cannot drift from the version a contributor uses. The
+cost is a vendored script; `./mill updateMillScripts <version>` regenerates it,
+and the version it pins is documented in the README.
+
+### Release engineer — the gate is worthless if it never runs (10/10)
+
+Phase 6 made the consumer gate fail rather than abstain when `FLIX_JAR` is
+unset. That only matters if something sets the variable. CI downloads a Flix
+release into the runner's temporary directory and exports it, so both the
+real-compiler suite and the publish-resolve-build gate execute on every push.
+
+The download pins `v0.75.1` rather than `releases/latest`. This is the same
+reasoning that kept automatic downloads out of the plugin, applied to the
+workflow: the `artifact/<project-directory>.fpkg` naming rule the plugin depends
+on is an observed contract of that release, and a floating URL would turn an
+upstream release into a surprise failure on an unrelated pull request. Upgrading
+Flix should be a deliberate commit that re-tests the naming rule.
+
+### CI engineer — split fast feedback from the slow gate (8/10)
+
+Running everything in one job would put a 30-plus-second compiler download and a
+Mill subprocess in front of a formatting error. Two jobs run concurrently: one
+reports formatting, compilation, and unit failures quickly, the other proves the
+published artifact works. Both share a Mill and Coursier cache keyed on
+`.mill-version` and `build.mill`.
+
+### Dependency maintainer — automate only what Dependabot can see (7/10)
+
+Dependabot has no Mill ecosystem. It cannot read `build.mill`, so the Scala
+version, `millVersion`, and `mill-testkit` stay manual, and claiming otherwise
+would be worse than the current state. Scoping it to `github-actions` keeps the
+one thing it can genuinely maintain current, grouped into a single weekly pull
+request so routine action bumps do not crowd out real work.
+
+## Continuous integration consensus
+
+Check the Mill bootstrap scripts into the repository and drive CI with them.
+Split the workflow into fast unit feedback and a slower job that runs the
+real-compiler suite and the consumer gate against a pinned Flix release. Limit
+Dependabot to GitHub Actions and record that Mill dependencies are updated by
+hand (4/4).

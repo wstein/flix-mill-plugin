@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  # Mill colourises its output only when it believes a terminal is attached.
+  # Mill emits ANSI colors only when it believes a terminal is attached.
   FORCE_COLOR: '1'
   # The Flix release the consumer gate builds against. The `.fpkg` naming rule the
   # plugin relies on is an observed contract of this release, so the version is
