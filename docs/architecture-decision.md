@@ -61,7 +61,7 @@ downloads for now (consensus 4/4).
    roots, and return validated Flix outputs. Completed.
 5. Add owner-approved publication metadata and consumer-build integration
    coverage. Completed: the plugin publishes as
-   `com.github.wstein:flix-mill-plugin_mill1_3:0.1.0` and a consumer gate
+   `io.github.wstein:flix-mill-plugin_mill1_3:0.1.0` and a consumer gate
    resolves it from a Mill subprocess.
 6. Correct JVM resolution, output signatures, and working-directory handling,
    and make the consumer gate non-optional. Completed: see
@@ -109,7 +109,7 @@ This decision was later reversed; see
 
 ### Release engineer — publish early, but test the published artifact (9/10)
 
-Apache-2.0, `com.github.wstein`, version `0.1.0`, and the GitHub repository are
+Apache-2.0, `io.github.wstein`, version `0.1.0`, and the GitHub repository are
 now explicit publication metadata. A consumer test must resolve the publication
 in a new Mill subprocess; direct trait tests would not detect incorrect
 coordinates, POM metadata, or meta-build imports.

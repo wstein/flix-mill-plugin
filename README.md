@@ -12,7 +12,7 @@ official `flix.jar` command-line interface from a Mill module.
 ## Status
 
 The plugin is implemented, tested against Flix 0.75.1, and published for Mill
-1.x as `com.github.wstein:flix-mill-plugin_mill1_3`.
+1.x as `io.github.wstein:flix-mill-plugin_mill1_3`.
 
 It is **not on Maven Central yet**. Version `0.1.0` is prepared but unreleased,
 so the only way to consume it today is to publish it locally. See
@@ -43,7 +43,7 @@ and extend it from the module that is the root of the Flix project:
 
 ```scala
 //| mvnDeps:
-//| - com.github.wstein::flix-mill-plugin::0.1.0
+//| - io.github.wstein::flix-mill-plugin::0.1.0
 
 import flixmill.FlixModule
 
@@ -179,7 +179,7 @@ the version they default to, still needs `./mill updateMillScripts <version>`.
 ## Publishing
 
 The plugin is Apache-2.0 licensed and publishes as
-`com.github.wstein:flix-mill-plugin_mill1_3:0.1.0`:
+`io.github.wstein:flix-mill-plugin_mill1_3:0.1.0`:
 
 ```text
 ./mill flixMillPlugin.publishLocal

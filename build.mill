@@ -22,7 +22,7 @@ object flixMillPlugin extends ScalaModule, PublishModule, ScalafmtModule {
   def publishVersion = "0.1.0"
   def pomSettings = PomSettings(
     description = "Flix compiler support for Mill",
-    organization = "com.github.wstein",
+    organization = "io.github.wstein",
     url = "https://github.com/wstein/flix-mill-plugin",
     licenses = Seq(License.`Apache-2.0`),
     versionControl = VersionControl.github("wstein", "flix-mill-plugin"),
