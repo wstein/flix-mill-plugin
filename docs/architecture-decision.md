@@ -66,8 +66,8 @@ downloads for now (consensus 4/4).
 6. Correct JVM resolution, output signatures, and working-directory handling,
    and make the consumer gate non-optional. Completed: see
    [Output signature review](#output-signature-review).
-7. Run both suites on every push and keep the workflow's own dependencies
-   current. Completed: see
+7. Run both suites on every push and keep every pinned version current.
+   Completed: see
    [Continuous integration review](#continuous-integration-review).
 
 ## Future considerations
@@ -226,18 +226,37 @@ reports formatting, compilation, and unit failures quickly, the other proves the
 published artifact works. Both share a Mill and Coursier cache keyed on
 `.mill-version` and `build.mill`.
 
-### Dependency maintainer — automate only what Dependabot can see (7/10)
+### Dependency maintainer — Renovate, since Dependabot cannot see Mill (8/10)
 
-Dependabot has no Mill ecosystem. It cannot read `build.mill`, so the Scala
-version, `millVersion`, and `mill-testkit` stay manual, and claiming otherwise
-would be worse than the current state. Scoping it to `github-actions` keeps the
-one thing it can genuinely maintain current, grouped into a single weekly pull
-request so routine action bumps do not crowd out real work.
+Dependabot was the first choice and was rejected on inspection. It has no Mill
+ecosystem and cannot be taught one, so it would have maintained the workflow's
+actions and nothing else: `.mill-version`, the bootstrap scripts, the Scala
+version, and the pinned Flix release would all have stayed manual, which is most
+of what this repository actually pins.
+
+Renovate has no Mill manager either, but it has `customManagers`, which closes
+the gap. Running both would have produced duplicate action pull requests —
+they share no state and neither closes the other's work — so Dependabot is
+removed rather than kept alongside.
+
+The rule each custom manager follows is that one dependency name covers every
+file holding that version, so an upgrade is never half-applied: Mill moves
+`.mill-version` and both bootstrap scripts together, and Flix moves the CI pin
+and the README statements with it. A Flix bump is therefore a pull request whose
+own CI run re-tests the `.fpkg` naming rule the plugin depends on — the gate
+grades the upgrade that proposes it.
+
+Two things are deliberately excluded. `millVersion` in `build.mill` is the
+oldest Mill 1.x the published artifact supports, not a version to keep current;
+letting a bot raise it would silently drop consumers. `github-runners` is
+disabled because `ubuntu-latest` is intentional and pinning the image would add
+churn this build gains nothing from.
 
 ## Continuous integration consensus
 
 Check the Mill bootstrap scripts into the repository and drive CI with them.
 Split the workflow into fast unit feedback and a slower job that runs the
-real-compiler suite and the consumer gate against a pinned Flix release. Limit
-Dependabot to GitHub Actions and record that Mill dependencies are updated by
-hand (4/4).
+real-compiler suite and the consumer gate against a pinned Flix release. Use
+Renovate rather than Dependabot, with custom managers covering every version
+this repository pins and explicit exclusions for the two that must not float
+(4/4).

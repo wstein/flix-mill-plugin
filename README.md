@@ -112,9 +112,6 @@ installation is needed:
 ./mill flixMillPlugin.checkFormat + flixMillPlugin.compile + flixMillPlugin.test
 ```
 
-Upgrade Mill by editing `.mill-version` and regenerating the bootstrap scripts
-with `./mill updateMillScripts <version>`.
-
 To include the real-compiler integration test, download a Flix JAR and run:
 
 ```text
@@ -149,13 +146,35 @@ slow release gate:
 
 The Flix version is pinned rather than tracking `releases/latest`: the
 `artifact/<project-directory>.fpkg` naming rule the plugin depends on is an
-observed contract of that release, so upgrading it should be a deliberate commit
-that re-tests the rule.
+observed contract of that release, so an upgrade belongs in a reviewed pull
+request that re-tests the rule instead of arriving unannounced on an unrelated
+change.
 
-[Dependabot](.github/dependabot.yml) keeps the workflow's actions current in a
-single grouped weekly pull request. It has no Mill ecosystem and cannot read
-`build.mill`, so the Scala version, `millVersion`, and `mill-testkit` are
-upgraded by hand.
+## Dependency updates
+
+[Renovate](.github/renovate.json5) opens weekly upgrade pull requests and tracks
+progress on a dependency dashboard issue. Neither Renovate nor Dependabot has a
+Mill manager, so the Mill-specific versions are matched by custom rules:
+
+| Dependency | Files kept in step |
+| --- | --- |
+| Mill | `.mill-version`, `mill`, `mill.bat` |
+| Flix | `.github/workflows/ci.yml`, `README.md` |
+| Scala | `build.mill` |
+| scalafmt | `.scalafmt.conf` |
+| GitHub Actions | `.github/workflows/ci.yml` |
+
+Each dependency covers every file that states its version, so an upgrade is
+never half-applied. A Flix bump is graded by the consumer gate in its own pull
+request, which is what re-tests the `.fpkg` naming rule.
+
+Two versions are deliberately excluded. `millVersion` in `build.mill` is the
+oldest Mill 1.x the published artifact supports, so raising it is a
+compatibility decision, not an upgrade. `runs-on: ubuntu-latest` is intentional
+and is not pinned.
+
+A Mill release that changes the bootstrap scripts themselves, rather than only
+the version they default to, still needs `./mill updateMillScripts <version>`.
 
 ## Publishing
 
