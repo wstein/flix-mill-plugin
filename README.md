@@ -35,7 +35,7 @@ module that is the root of the Flix project:
 
 ```scala
 //| mvnDeps:
-//| - io.github.wstein::flix-mill-plugin::0.1.0
+//| - io.github.wstein::flix-mill-plugin::0.1.1
 //| repositories:
 //| - https://wstein.github.io/flix-mill-plugin/maven/
 

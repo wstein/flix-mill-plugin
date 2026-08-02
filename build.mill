@@ -19,7 +19,7 @@ object flixMillPlugin extends ScalaModule, PublishModule, ScalafmtModule {
   def mvnDeps = Seq(mvn"com.lihaoyi::mill-libs:$millVersion")
 
   def artifactName = "flix-mill-plugin"
-  def publishVersion = "0.1.0"
+  def publishVersion = "0.1.1"
   def pomSettings = PomSettings(
     description = "Flix compiler support for Mill",
     organization = "io.github.wstein",
