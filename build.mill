@@ -58,3 +58,21 @@ object flixMillPlugin extends ScalaModule, SonatypeCentralPublishModule, Scalafm
     }
   }
 }
+
+// CI-only tooling for the GitHub-Pages Maven mirror: checksums, the additive
+// group maven-metadata.xml merge, and the landing page. Deliberately a separate,
+// unpublished module -- `flixMillPlugin` above is what gets published, and
+// publishing tooling has no business inside the artifact consumers resolve.
+object publishTools extends ScalaModule, ScalafmtModule {
+  def scalaVersion = flixMillPlugin.scalaVersion
+  def jvmVersion = flixMillPlugin.jvmVersion
+  def scalacOptions = Seq("-Werror", "-Wunused:all")
+  def mainClass = Some("flixmill.publishtools.Main")
+
+  object test extends ScalaTests, TestModule.Utest {
+    // `TestModule.Utest.utestVersion` defaults to empty (bring-your-own-dependency); the existing
+    // `flixMillPlugin.test`/`integration` modules get it transitively through `mill-testkit`,
+    // which this module has no other reason to depend on.
+    def utestVersion = "0.9.1"
+  }
+}
