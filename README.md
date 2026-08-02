@@ -12,11 +12,9 @@ official `flix.jar` command-line interface from a Mill module.
 ## Status
 
 The plugin is implemented, tested against Flix 0.75.1, and published for Mill
-1.x as `io.github.wstein:flix-mill-plugin_mill1_3`.
-
-It is **not on Maven Central yet**. Version `0.1.0` is prepared but unreleased,
-so the only way to consume it today is to publish it locally. See
-[Publishing](#publishing).
+1.x as `io.github.wstein:flix-mill-plugin_mill1_3` to a
+[GitHub Pages Maven repository](https://wstein.github.io/flix-mill-plugin/) --
+not Maven Central. See [Use in a Mill build](#use-in-a-mill-build).
 
 ## Design
 
@@ -31,23 +29,27 @@ working directory, so Flix finds that project's `flix.toml` manifest.
 
 ## Use in a Mill build
 
-Until the artifact reaches Maven Central, publish it into your local Ivy
-repository first, which Mill's default resolvers already search:
-
-```text
-./mill flixMillPlugin.publishLocal
-```
-
-Then add the plugin to your build's meta-build dependencies, import the trait,
-and extend it from the module that is the root of the Flix project:
+The plugin is not on Maven Central, so add its GitHub Pages Maven repository
+alongside the usual dependency, import the trait, and extend it from the
+module that is the root of the Flix project:
 
 ```scala
 //| mvnDeps:
 //| - io.github.wstein::flix-mill-plugin::0.1.0
+//| repositories:
+//| - https://wstein.github.io/flix-mill-plugin/maven/
 
 import flixmill.FlixModule
 
 object app extends FlixModule
+```
+
+For local development against an unreleased change, publish into the local
+Ivy repository instead, which Mill's default resolvers already search (no
+`repositories:` entry needed):
+
+```text
+./mill flixMillPlugin.publishLocal
 ```
 
 Put `flix.jar`, `flix.toml`, `src/`, and (optionally) `test/` in `app/`. The
@@ -189,13 +191,13 @@ To publish locally, into a repository Mill's default resolvers search:
 ./mill flixMillPlugin.publishLocal
 ```
 
-### Releasing to Maven Central
+### Releasing to GitHub Pages
 
 Releases go out from a tag.
 [The release workflow](.github/workflows/release.yml) refuses to run from a
-branch, and refuses a tag that disagrees with
-`publishVersion`, because **Maven Central publications are immutable** — a
-version that goes out wrong cannot be withdrawn, only superseded.
+branch, and refuses a tag that disagrees with `publishVersion`, because **the
+published mirror is immutable** — a version that goes out wrong cannot be
+withdrawn, only superseded.
 
 ```text
 # 1. set publishVersion in build.mill, commit
@@ -203,39 +205,12 @@ version that goes out wrong cannot be withdrawn, only superseded.
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-The workflow then re-runs the consumer gate, signs the artifacts, and uploads a
-bundle to the Central portal. It stops there: `sonatypeCentralShouldRelease` is
-`false`, so the deployment waits at `VALIDATED` until you press Publish at
-[central.sonatype.com](https://central.sonatype.com). A deployment that has not
-been published yet can still be dropped.
-
-One-time setup, none of which lives in this repository:
-
-1. Sign in to [central.sonatype.com](https://central.sonatype.com) **with the
-   GitHub account that owns this repository**. That usually provisions the
-   `io.github.<user>` namespace automatically; otherwise register it and verify
-   by creating a public repository named after the verification key.
-2. Generate a user token under
-   [central.sonatype.com/usertoken](https://central.sonatype.com/usertoken).
-   It is a username/password pair, not your login, and it expires.
-3. Create a PGP key and send the public half to `keyserver.ubuntu.com`. Sign
-   with the **primary** key — Central cannot verify a signature made by a
-   signing subkey.
-4. Store four repository secrets: `MILL_SONATYPE_USERNAME`,
-   `MILL_SONATYPE_PASSWORD`, `MILL_PGP_SECRET_BASE64` (the ASCII-armored secret
-   key, base64-encoded to a single line), and `MILL_PGP_PASSPHRASE`.
-
-Mill 1.x signs in process rather than shelling out to `gpg`, so
-`MILL_PGP_SECRET_BASE64` is required — publishing fails outright without it.
-`./mill mill.javalib.SonatypeCentralPublishModule/initGpgKeys` will generate the
-key, upload it, and print the values to store.
-
-To rehearse the whole path without uploading anything, publish to a local
-directory instead:
-
-```text
-MILL_TESTS_PUBLISH_DRY_RUN=1 ./mill flixMillPlugin.publishSonatypeCentral
-```
+The workflow re-runs the consumer gate, then publishes standard Maven layout
+(`publishM2Local`) plus checksums, an additive `maven-metadata.xml`, and a
+generated landing page (all built by the unpublished `publishTools` module) to
+the `gh-pages` branch, deployed via GitHub Pages. No account, secret, or
+signing key is required. The workflow then verifies the published coordinate
+actually resolves and the landing page actually loads before finishing.
 
 ## Project notes
 

@@ -5,7 +5,7 @@ import mill.scalalib.*
 import mill.scalalib.publish.*
 import mill.scalalib.scalafmt.*
 
-object flixMillPlugin extends ScalaModule, SonatypeCentralPublishModule, ScalafmtModule {
+object flixMillPlugin extends ScalaModule, PublishModule, ScalafmtModule {
   /** The oldest Mill 1.x version supported by the published plugin artifact. */
   def millVersion = "1.0.6"
 
@@ -28,11 +28,6 @@ object flixMillPlugin extends ScalaModule, SonatypeCentralPublishModule, Scalafm
     versionControl = VersionControl.github("wstein", "flix-mill-plugin"),
     developers = Seq(Developer("wstein", "Werner Stein", "https://github.com/wstein"))
   )
-
-  // Upload the bundle but leave the release for a human to confirm in the Central
-  // portal. Maven Central publications are immutable, so the last look at what is
-  // about to become permanent is worth more than the click it costs.
-  def sonatypeCentralShouldRelease = Task { false }
 
   object test extends ScalaTests, TestModule.Utest {
     def mvnDeps = Seq(mvn"com.lihaoyi::mill-testkit:$millVersion")

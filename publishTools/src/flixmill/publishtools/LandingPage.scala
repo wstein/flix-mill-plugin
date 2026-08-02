@@ -128,15 +128,6 @@ object LandingPage {
        |  consumer project supplies its own <code>flix.jar</code>.
        |</p>
        |
-       |<div class="note">
-       |  <strong>Hosted here as an additional channel, not the primary one.</strong> This artifact is
-       |  also intended for <a href="https://central.sonatype.com/">Maven Central</a>, which most Mill
-       |  builds will resolve automatically with no repository configuration at all. This GitHub Pages
-       |  repository exists because Central publication requires an approved account and PGP signing
-       |  that may not always be configured yet -- see <code>README.md</code>'s "Publishing" section in
-       |  the repository for the Central release procedure.
-       |</div>
-       |
        |<h2>Use it</h2>
        |<pre><code>//| mvnDeps:
        |//| - $safeGroupId::$safeArtifactName::$latest
@@ -145,7 +136,7 @@ object LandingPage {
        |
        |object app extends FlixModule</code></pre>
        |<p style="font-size: 0.9rem;">
-       |  Add this repository if resolving from here rather than Central:
+       |  Not on Maven Central -- add this repository:
        |</p>
        |<pre><code>//| repositories:
        |//| - https://${escapeHtml(repositoryUrl)}/maven/</code></pre>

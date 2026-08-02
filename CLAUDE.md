@@ -14,7 +14,6 @@ or JDK install is assumed.
 ./mill flixMillPlugin.test.testOnly flixmill.FlixTaskTests          # one suite
 ./mill flixMillPlugin.test 'flixmill.FlixTaskTests.runs Flix in the module directory by default'
 ./mill flixMillPlugin.publishLocal                  # -> ~/.ivy2/local
-MILL_TESTS_PUBLISH_DRY_RUN=1 ./mill flixMillPlugin.publishSonatypeCentral
 ```
 
 The two suites that need a real compiler take a `FLIX_JAR` pointing at a
@@ -99,11 +98,17 @@ it were a dependency — raising it drops consumers.
 
 `publishVersion` is a literal, and `.github/workflows/release.yml` refuses a tag
 that disagrees with it. Bump the literal and tag the same version, or the
-release fails before uploading — which is the point, because **Maven Central
-publications are immutable**. The namespace is `io.github.wstein`;
-`com.github.*` is unpublishable and was moved off for that reason. Never
-weaken the tag check or set `sonatypeCentralShouldRelease` to true without
-being asked: together they are the last chance to inspect a permanent release.
+release fails before uploading — which is the point, because **the published
+GitHub Pages Maven mirror is immutable by policy** (`Refuse to Republish an
+Existing Version` in the release workflow): once a version is up, it does not
+move under the same coordinate. The namespace is `io.github.wstein`;
+`com.github.*` was tried first and abandoned — see the ADR. Never weaken the
+tag check or the republish guard without being asked: together they are the
+last chance to inspect a release that cannot be taken back.
+
+The plugin publishes only to GitHub Pages, not Maven Central — `build.mill`
+uses plain `PublishModule`, not `SonatypeCentralPublishModule`. Do not
+reintroduce Central publishing without being asked.
 
 Renovate (`.github/renovate.json5`) keeps the rest current, grouping every file
 that states a version under one dependency so upgrades are never half-applied:

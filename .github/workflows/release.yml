@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 # Never publish two releases at once, and never cancel one part-way: a cancelled
-# upload can leave a deployment stranded in the Central portal.
+# run can leave the gh-pages branch pushed but the Pages deployment stranded.
 concurrency:
   group: release
   cancel-in-progress: false
@@ -20,7 +20,7 @@ env:
 
 jobs:
   publish:
-    name: Publish to Maven Central and GitHub Pages
+    name: Publish to GitHub Pages
     runs-on: ubuntu-latest
     permissions:
       # contents: write pushes the gh-pages branch (the additive Maven-repo accumulator, same
@@ -49,9 +49,10 @@ jobs:
           key: mill-${{ runner.os }}-${{ hashFiles('.mill-version', 'build.mill') }}
           restore-keys: mill-${{ runner.os }}-
 
-      # Maven Central publications are immutable, so the tag and the version the
-      # build would publish must agree before anything is uploaded. Running from
-      # a branch is refused outright rather than guessing a version.
+      # The gh-pages Maven mirror is immutable (see "Refuse to Republish an Existing
+      # Version" below), so the tag and the version the build would publish must
+      # agree before anything is uploaded. Running from a branch is refused outright
+      # rather than guessing a version.
       - name: Require a tag matching publishVersion
         run: |
           if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
@@ -79,11 +80,8 @@ jobs:
         run: ./mill flixMillPlugin.test + flixMillPlugin.integration
 
       # --------------------------------------------------------------------------
-      # GitHub Pages Maven repository: a zero-secret, immediately-usable channel
-      # alongside Sonatype Central. Central requires an approved account and PGP
-      # signing (four secrets below); this needs neither, so it publishes first --
-      # a missing Central secret must never prevent this from succeeding, and does
-      # not, because it runs and completes before Central is ever touched.
+      # GitHub Pages Maven repository: the sole distribution channel. No Sonatype
+      # account or PGP signing required.
       #
       # Modeled on wstein/flix-spec's own GitHub-Pages Maven pipeline, adapted for
       # Mill rather than Gradle: `publishM2Local` writes standard Maven layout to an
@@ -151,7 +149,7 @@ jobs:
           fi
 
       - name: Refuse to Republish an Existing Version
-        # Central publications are immutable and this mirror should behave the same way: once a
+        # This mirror is immutable by policy, the same way Maven Central is: once a
         # version is up, it does not move under the same coordinate.
         run: |
           set -euo pipefail
@@ -162,7 +160,7 @@ jobs:
           DEST="gh-pages-worktree/maven/${GROUP_PATH}/${{ steps.coords.outputs.artifact_id }}/${{ steps.coords.outputs.version }}"
           if [ -d "$DEST" ]; then
             echo "FATAL: ${{ steps.coords.outputs.version }} is already published at $DEST." >&2
-            echo "This mirror is immutable, same as Central -- bump publishVersion instead." >&2
+            echo "This mirror is immutable -- bump publishVersion instead." >&2
             exit 1
           fi
           echo "Publishing new version at $DEST"
@@ -277,13 +275,3 @@ jobs:
 
           echo "FATAL: $URL never returned 200." >&2
           exit 1
-
-      # Uploads a signed bundle and stops. `sonatypeCentralShouldRelease` is false,
-      # so the deployment waits in the portal until a human publishes it.
-      - name: Upload the signed bundle to the Central portal
-        env:
-          MILL_SONATYPE_USERNAME: ${{ secrets.MILL_SONATYPE_USERNAME }}
-          MILL_SONATYPE_PASSWORD: ${{ secrets.MILL_SONATYPE_PASSWORD }}
-          MILL_PGP_SECRET_BASE64: ${{ secrets.MILL_PGP_SECRET_BASE64 }}
-          MILL_PGP_PASSPHRASE: ${{ secrets.MILL_PGP_PASSPHRASE }}
-        run: ./mill flixMillPlugin.publishSonatypeCentral
