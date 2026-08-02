@@ -62,24 +62,15 @@
   consumer project supplies its own <code>flix.jar</code>.
 </p>
 
-<div class="note">
-  <strong>Hosted here as an additional channel, not the primary one.</strong> This artifact is
-  also intended for <a href="https://central.sonatype.com/">Maven Central</a>, which most Mill
-  builds will resolve automatically with no repository configuration at all. This GitHub Pages
-  repository exists because Central publication requires an approved account and PGP signing
-  that may not always be configured yet -- see <code>README.md</code>'s "Publishing" section in
-  the repository for the Central release procedure.
-</div>
-
 <h2>Use it</h2>
 <pre><code>//| mvnDeps:
-//| - io.github.wstein::flix-mill-plugin::0.1.0
+//| - io.github.wstein::flix-mill-plugin::0.1.1
 
 import flixmill.FlixModule
 
 object app extends FlixModule</code></pre>
 <p style="font-size: 0.9rem;">
-  Add this repository if resolving from here rather than Central:
+  Not on Maven Central -- add this repository:
 </p>
 <pre><code>//| repositories:
 //| - https://wstein.github.io/flix-mill-plugin/maven/</code></pre>
@@ -88,6 +79,10 @@ object app extends FlixModule</code></pre>
 <div class="overflow">
 <table>
   <tr><th>Version</th><th></th></tr>
+        <tr>
+          <td><code>0.1.1</code></td>
+          <td><a href="maven/io/github/wstein/flix-mill-plugin_mill1_3/0.1.1/">browse</a></td>
+        </tr>
         <tr>
           <td><code>0.1.0</code></td>
           <td><a href="maven/io/github/wstein/flix-mill-plugin_mill1_3/0.1.0/">browse</a></td>
