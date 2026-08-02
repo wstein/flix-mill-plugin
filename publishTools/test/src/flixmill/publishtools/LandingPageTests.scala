@@ -7,7 +7,14 @@ object LandingPageTests extends TestSuite {
   private val versions = MavenMetadata.Versions(List("0.1.0", "0.2.0"))
 
   private def rendered: String =
-    LandingPage.render("io.github.wstein", "flix-mill-plugin", versions, "wstein.github.io/flix-mill-plugin", "0.75.1")
+    LandingPage.render(
+      "io.github.wstein",
+      "flix-mill-plugin_mill1_3",
+      "flix-mill-plugin",
+      versions,
+      "wstein.github.io/flix-mill-plugin",
+      "0.75.1"
+    )
 
   /** Every opened tag closes, in order, none left open at the end. The same regression class this
     * guards against broke `wstein/flix-spec`'s first landing page: a template with enough
@@ -49,19 +56,30 @@ object LandingPageTests extends TestSuite {
       assert(rendered.contains("io.github.wstein::flix-mill-plugin::0.2.0"))
     }
 
+    test("the usage snippet uses the unsuffixed artifact name, never the resolved artifact id") {
+      // Real bug, caught only by an actual release run: Mill's `::` mvnDeps syntax appends the
+      // platform suffix itself, so a snippet built from the already-suffixed artifactId
+      // ("flix-mill-plugin_mill1_3") resolves to a coordinate that doesn't exist
+      // ("flix-mill-plugin_mill1_3_mill1_3"). The snippet must use the unsuffixed artifactName;
+      // the resolved artifactId belongs only in the real Maven paths below.
+      assert(!rendered.contains("flix-mill-plugin_mill1_3::"))
+      assert(rendered.contains("maven/io/github/wstein/flix-mill-plugin_mill1_3/0.2.0/"))
+    }
+
     test("every published version is listed") {
       assert(rendered.contains(">0.1.0<"))
       assert(rendered.contains(">0.2.0<"))
     }
 
     test("no published versions renders an explicit empty state, not an empty table") {
-      val html = LandingPage.render("g", "a", MavenMetadata.Versions(Nil), "example.invalid", "0.75.1")
+      val html =
+        LandingPage.render("g", "a_mill1_3", "a", MavenMetadata.Versions(Nil), "example.invalid", "0.75.1")
       assert(html.contains("none published yet"))
       assert(html.contains("(none published yet)")) // the usage snippet's placeholder version
     }
 
     test("dynamic values are HTML-escaped") {
-      val html = LandingPage.render("<g>", "a\"b", versions, "example.invalid", "0.75.1")
+      val html = LandingPage.render("<g>", "a\"b_mill1_3", "a\"b", versions, "example.invalid", "0.75.1")
       assert(!html.contains("<g>"))
     }
 

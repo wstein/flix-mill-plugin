@@ -13,14 +13,27 @@ import java.nio.file.{Files, Path, Paths}
 object Main {
 
   def main(args: Array[String]): Unit = {
-    if (args.length != 6) {
+    if (args.length != 7) {
       System.err.println(
-        "usage: publishTools <m2RepoPath> <indexOutputPath> <groupId> <artifactId> <version> <repositoryUrl>"
+        "usage: publishTools <m2RepoPath> <indexOutputPath> <groupId> <artifactId> <artifactName> <version> <repositoryUrl>"
       )
       sys.exit(2)
     }
-    val Array(m2RepoPathArg, indexOutputPathArg, groupId, artifactId, version, repositoryUrl) = args
+    val Array(
+      m2RepoPathArg,
+      indexOutputPathArg,
+      groupId,
+      artifactId,
+      artifactName,
+      version,
+      repositoryUrl
+    ) = args
 
+    // `artifactId` (Mill's resolved, platform-suffixed id, e.g. "flix-mill-plugin_mill1_3") is the
+    // real Maven path segment and the id `maven-metadata.xml` must match. `artifactName` (the
+    // unsuffixed base, e.g. "flix-mill-plugin") is what belongs in a `::`-style mvnDeps snippet,
+    // since Mill's `::` syntax appends the platform suffix itself -- using `artifactId` there
+    // double-suffixes the coordinate into one that resolves nowhere.
     val m2RepoPath = Paths.get(m2RepoPathArg)
     val groupPath = groupId.replace('.', '/')
     val versionDir = m2RepoPath.resolve(groupPath).resolve(artifactId).resolve(version)
@@ -41,7 +54,8 @@ object Main {
     println(s"maven-metadata.xml: ${merged.all.mkString(", ")}")
 
     val flixVersion = sys.env.getOrElse("FLIX_VERSION", "unknown")
-    val html = LandingPage.render(groupId, artifactId, merged, repositoryUrl, flixVersion)
+    val html =
+      LandingPage.render(groupId, artifactId, artifactName, merged, repositoryUrl, flixVersion)
     val indexPath: Path = Paths.get(indexOutputPathArg)
     Option(indexPath.getParent).foreach(Files.createDirectories(_))
     Files.writeString(indexPath, html, StandardCharsets.UTF_8)

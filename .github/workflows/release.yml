@@ -99,18 +99,27 @@ jobs:
         # the mistake that broke flix-spec's own pipeline earlier this project's
         # history -- a hand-reconstructed coordinate silently drifted from what the
         # build tool actually produces.
+        #
+        # `artifact_id` (suffixed) and `artifact_name` (unsuffixed) are both needed and are NOT
+        # interchangeable: `artifact_id` is the real Maven path segment; `artifact_name` is what a
+        # `::`-style mvnDeps snippet must use, because Mill's `::` syntax appends the platform
+        # suffix itself. Using `artifact_id` in a `::` snippet double-suffixes the coordinate into
+        # one that resolves nowhere -- this broke the very first real release (v0.1.0) of this
+        # workflow, in both the generated landing page and this workflow's own resolvability probe.
         id: coords
         run: |
           set -euo pipefail
           GROUP_ID="$(./mill --ticker false --color false show flixMillPlugin.pomSettings | jq -r .organization)"
           ARTIFACT_ID="$(./mill --ticker false --color false show flixMillPlugin.artifactId | tr -d '"')"
+          ARTIFACT_NAME="$(./mill --ticker false --color false show flixMillPlugin.artifactName | tr -d '"')"
           VERSION="$(./mill --ticker false --color false show flixMillPlugin.publishVersion | tr -d '"')"
           {
             echo "group_id=${GROUP_ID}"
             echo "artifact_id=${ARTIFACT_ID}"
+            echo "artifact_name=${ARTIFACT_NAME}"
             echo "version=${VERSION}"
           } >> "$GITHUB_OUTPUT"
-          echo "Publishing ${GROUP_ID}:${ARTIFACT_ID}:${VERSION}"
+          echo "Publishing ${GROUP_ID}:${ARTIFACT_ID}:${VERSION} (mvnDeps name: ${ARTIFACT_NAME})"
 
       - name: Checkout gh-pages Worktree
         # The orphan-branch path is destructive: it discards the whole publish history, including
@@ -169,6 +178,7 @@ jobs:
             "$(pwd)/gh-pages-worktree/index.html" \
             "${{ steps.coords.outputs.group_id }}" \
             "${{ steps.coords.outputs.artifact_id }}" \
+            "${{ steps.coords.outputs.artifact_name }}" \
             "${{ steps.coords.outputs.version }}" \
             "wstein.github.io/flix-mill-plugin"
 
@@ -209,20 +219,23 @@ jobs:
 
       - name: Verify the Published Coordinate Actually Resolves
         # Deploying is not publishing. A throwaway Mill consumer project, resolving through the
-        # real public URL with the real `//| mvnDeps:` syntax, is the only step here that proves a
-        # Mill build can actually depend on this -- more faithful than an HTTP GET, which would
-        # only prove the files exist, not that Mill's own resolution and header-comment dependency
-        # syntax work against them.
+        # real public URL with the exact `//| mvnDeps:` snippet the landing page itself publishes
+        # (group::artifactName::version, NOT the pre-suffixed artifactId -- Mill's `::` syntax
+        # appends the platform suffix itself, so using the already-suffixed id here double-suffixes
+        # the coordinate, which is exactly the bug this step exists to catch), is the only check
+        # here that proves a real consumer can actually depend on this -- more faithful than an
+        # HTTP GET, which would only prove the files exist, not that Mill's own resolution and
+        # header-comment dependency syntax work against them.
         run: |
           set -euo pipefail
           GROUP_ID="${{ steps.coords.outputs.group_id }}"
-          ARTIFACT_ID="${{ steps.coords.outputs.artifact_id }}"
+          ARTIFACT_NAME="${{ steps.coords.outputs.artifact_name }}"
           VERSION="${{ steps.coords.outputs.version }}"
 
           PROBE="$(mktemp -d)"
           cat > "$PROBE/build.mill" <<EOF
           //| mvnDeps:
-          //| - ${GROUP_ID}::${ARTIFACT_ID}::${VERSION}
+          //| - ${GROUP_ID}::${ARTIFACT_NAME}::${VERSION}
           //| repositories:
           //| - https://wstein.github.io/flix-mill-plugin/maven/
 
@@ -236,14 +249,14 @@ jobs:
 
           for attempt in $(seq 1 20); do
             if ( cd "$PROBE" && ./mill --ticker false resolve app._ ) >/tmp/probe.log 2>&1; then
-              echo "OK: ${GROUP_ID}:${ARTIFACT_ID}:${VERSION} resolves and app.FlixModule loads"
+              echo "OK: ${GROUP_ID}::${ARTIFACT_NAME}::${VERSION} resolves and app.FlixModule loads"
               exit 0
             fi
             echo "not resolvable yet (attempt $attempt); Pages may still be propagating"
             sleep 30
           done
 
-          echo "FATAL: ${GROUP_ID}:${ARTIFACT_ID}:${VERSION} never became resolvable." >&2
+          echo "FATAL: ${GROUP_ID}::${ARTIFACT_NAME}::${VERSION} never became resolvable." >&2
           cat /tmp/probe.log >&2
           exit 1
 

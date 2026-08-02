@@ -66,6 +66,7 @@ object LandingPage {
   def render(
       groupId: String,
       artifactId: String,
+      artifactName: String,
       versions: MavenMetadata.Versions,
       repositoryUrl: String,
       flixVersion: String
@@ -74,17 +75,26 @@ object LandingPage {
     // construction rather than by remembering to wrap each one individually -- the latter is
     // exactly how the usage-snippet interpolations were missed on the first pass (caught by
     // LandingPageTests, not by review).
+    //
+    // `artifactId` is Mill's resolved, platform-suffixed id (e.g. "flix-mill-plugin_mill1_3") --
+    // the real Maven path segment, used for the version-browse links below. `artifactName` is the
+    // unsuffixed base (e.g. "flix-mill-plugin"), which is what the `::`-style mvnDeps snippet
+    // needs: Mill's `::` syntax appends the platform suffix itself, so writing the already-suffixed
+    // `artifactId` there double-suffixes the coordinate into one that resolves nowhere (caught by
+    // a real end-to-end release run, not by any test -- see LandingPageTests for the regression
+    // this now guards).
     val safeGroupId = escapeHtml(groupId)
     val safeArtifactId = escapeHtml(artifactId)
+    val safeArtifactName = escapeHtml(artifactName)
     val safeFlixVersion = escapeHtml(flixVersion)
     val latest = escapeHtml(versions.latest.getOrElse("(none published yet)"))
     val rows = versions.all.reverse
       .map { v =>
         s"""        <tr>
            |          <td><code>${escapeHtml(v)}</code></td>
-           |          <td><a href="maven/${escapeHtml(groupId.replace('.', '/'))}/${escapeHtml(
-            artifactId
-          )}/${escapeHtml(v)}/">browse</a></td>
+           |          <td><a href="maven/${escapeHtml(
+            groupId.replace('.', '/')
+          )}/$safeArtifactId/${escapeHtml(v)}/">browse</a></td>
            |        </tr>""".stripMargin
       }
       .mkString("\n")
@@ -97,7 +107,7 @@ object LandingPage {
        |<head>
        |<meta charset="utf-8">
        |<meta name="viewport" content="width=device-width, initial-scale=1">
-       |<title>$safeArtifactId</title>
+       |<title>$safeArtifactName</title>
        |<meta name="description" content="A Mill build-tool plugin for the Flix compiler.">
        |$Styles
        |</head>
@@ -105,7 +115,7 @@ object LandingPage {
        |<main>
        |
        |<header>
-       |  <h1>$safeArtifactId</h1>
+       |  <h1>$safeArtifactName</h1>
        |  <p class="tagline">Flix compiler support for <a href="https://mill-build.org">Mill</a></p>
        |</header>
        |
@@ -129,7 +139,7 @@ object LandingPage {
        |
        |<h2>Use it</h2>
        |<pre><code>//| mvnDeps:
-       |//| - $safeGroupId::$safeArtifactId::$latest
+       |//| - $safeGroupId::$safeArtifactName::$latest
        |
        |import flixmill.FlixModule
        |
