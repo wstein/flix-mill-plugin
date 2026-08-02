@@ -322,3 +322,46 @@ Publish under `io.github.wstein` through the Central portal using
 `publishVersion` and on the consumer gate, and stop at an uploaded bundle rather
 than releasing automatically. This supersedes the `com.github.wstein` coordinate
 approved in phase 5 (4/4).
+
+## Distribution channel review
+
+The first real release (`v0.1.0`) reached the "upload to Central" step with no
+Sonatype account provisioned — `gh secret list` was empty, so the four secrets
+the previous section's design assumed never existed. Modeled on
+`wstein/flix-spec`'s already-working GitHub Pages Maven mirror, that channel was
+added alongside Central in the same release job. It was reached first, needed
+no account, and both a real Mill-consumer resolution and the landing page were
+verified to work against it in CI before Central was ever touched.
+
+### Release engineer — drop Central, keep only GitHub Pages (9/10)
+
+The project has never once actually published to Central: no account was ever
+provisioned, and every real release attempt failed at that step. Central's
+value proposition — the namespace every Mill/sbt build resolves with zero
+configuration — is real, but it is not free: an approved account, a primary
+PGP key mailed to a keyserver, four long-lived secrets, and a human clicking
+"Publish" in a portal UI on every release. GitHub Pages costs none of that and
+is already the channel that has actually been exercised end to end. Keeping
+both means maintaining machinery for a channel with a 0% success rate against
+one with a 100% success rate. Dropped `SonatypeCentralPublishModule` for plain
+`PublishModule` — `publishM2Local`, `pomSettings`, `artifactId`, `artifactName`
+are all `PublishModule` members, so nothing the GitHub Pages path depends on
+was lost.
+
+### Build engineer — the `io.github.wstein` namespace still earns its keep (7/10)
+
+Losing Central does not make the phase-6 namespace fix moot: `io.github.*`
+still reads as a real, GitHub-verified coordinate to anyone resolving it from
+the GitHub Pages repository, and readopting `com.github.*` would just
+reintroduce the original problem if Central publishing is ever revisited.
+Kept as-is.
+
+## Distribution channel consensus
+
+Publish only to the `gh-pages` GitHub Pages Maven mirror. `build.mill` uses
+plain `PublishModule`, not `SonatypeCentralPublishModule`; the release workflow
+no longer has a Central-upload step, and no Sonatype/PGP secrets are expected
+to exist in the repository. This supersedes the "Publish under `io.github.wstein`
+through the Central portal" line of the publication consensus above; the
+namespace choice itself is unaffected. Revisiting Central publishing is not
+ruled out, but it is out of scope until asked for again.
