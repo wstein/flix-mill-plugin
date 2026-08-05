@@ -12,6 +12,16 @@ object FlixTaskTests extends TestSuite {
     lazy val millDiscover = Discover[this.type]
   }
 
+  object managedManifestProject extends TestRootModule with FlixManifestModule {
+    override def flixPackageDescription = Task { "A managed project." }
+    override def flixPackageVersion = Task { "0.3.0" }
+    override def flixLanguageVersion = Task { "0.75.1" }
+    override def flixPackageAuthors = Task { Seq("Ada") }
+    override def flixMvnDependencies = Task { Seq("org.postgresql:postgresql" -> "42.7.3") }
+
+    lazy val millDiscover = Discover[this.type]
+  }
+
   object nestedProject extends TestRootModule {
     object app extends FlixModule {
       override def flixWorkingDirectory = moduleDir / "flix"
@@ -57,6 +67,30 @@ object FlixTaskTests extends TestSuite {
 
     test("runs Flix in the module directory by default") {
       assert(defaultProject.flixWorkingDirectory == defaultProject.moduleDir)
+    }
+
+    test("writes the generated manifest where Flix looks for it") {
+      // Flix locates its manifest by name in the directory it runs in, so this is the one file the
+      // plugin writes into the project rather than into `Task.dest`.
+      UnitTester(managedManifestProject, os.temp.dir()).scoped { eval =>
+        val manifest = evaluated(eval(managedManifestProject.flixGeneratedManifest)).value
+
+        assert(manifest.path == managedManifestProject.flixWorkingDirectory / "flix.toml")
+        val contents = os.read(manifest.path)
+        assert(contents.contains("version = \"0.3.0\""))
+        assert(contents.contains("\"org.postgresql:postgresql\" = \"42.7.3\""))
+      }
+    }
+
+    test("invalidates compilation when the generated manifest changes") {
+      // `flixProjectInputs` is what `check` and `build` depend on. Leaving the generated manifest
+      // out of it would let a dependency change compile against the previous one.
+      UnitTester(managedManifestProject, os.temp.dir()).scoped { eval =>
+        val inputs = evaluated(eval(managedManifestProject.flixProjectInputs))
+
+        assert(inputs.evalCount > 0)
+        assert(os.exists(managedManifestProject.flixWorkingDirectory / "flix.toml"))
+      }
     }
 
     test("moves every tracked and generated path with the working directory") {
