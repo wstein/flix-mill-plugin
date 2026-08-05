@@ -81,26 +81,78 @@ object app extends FlixModule {
 | `app.build` | `build` |
 | `app.test` | `test` |
 | `app.run -- arg` | `run arg` |
+| `app.buildJar` | `build-jar` |
 | `app.buildPkg` | `build-pkg` |
 | `app.init` | `init` |
 | `app.flixHelp` | `--help` |
 
-`check`, `build`, and `buildPkg` are cached tasks. `test`, `run`, `init`, and
-`flixHelp` are command tasks because they perform user-directed actions. The
-cached tasks track `flix.toml`, `src/`, `test/`, and the compiler JAR; edits to
+`check`, `build`, `buildJar`, and `buildPkg` are cached tasks. `test`, `run`,
+`init`, and `flixHelp` are command tasks because they perform user-directed
+actions. The cached tasks track `flix.toml`, `src/`, `test/`, and the compiler
+JAR; edits to
 generated `build/` and `artifact/` output do not invalidate them. Override
 `flixSourceDirectories` when a project has additional source roots.
 
-`build` and `buildPkg` return their validated Flix-owned output as a `PathRef`
-under the Flix working directory; `buildPkg` returns
-`artifact/<working-directory-name>.fpkg`. Neither is a Mill-owned `Task.dest`
-output. Those `PathRef`s are revalidated when Mill reads a cached result back,
+`build`, `buildJar`, and `buildPkg` return their validated Flix-owned output as
+a `PathRef` under the Flix working directory; `buildPkg` returns
+`artifact/<working-directory-name>.fpkg` and `buildJar` the `.jar` beside it.
+None is a Mill-owned `Task.dest` output. Those `PathRef`s are revalidated when
+Mill reads a cached result back,
 so removing the output re-runs the task rather than replaying a path to a file
 that is no longer there.
 
 The Flix compiler writes outside `Task.dest`, which Mill's filesystem checker
 normally forbids a task from reading. The plugin suspends that check only to
 compute the signature of output it has just produced itself.
+
+### Calling Flix from a JVM module
+
+A `FlixModule` is not a `JavaModule`, so it cannot appear in another module's
+`moduleDeps`. `flixClasspath` is the seam instead:
+
+```scala
+object greeter extends FlixModule
+
+object app extends JavaModule {
+  def unmanagedClasspath = Task { greeter.flixClasspath() }
+}
+```
+
+What a Java caller finds there is whatever the Flix project marked `@Export` —
+a class per module carrying `public static` methods. Use `buildJar` instead when
+the artifact leaves the build.
+
+### Generating `flix.toml` from the build
+
+Mixing in `FlixManifestModule` makes the Mill build the single source of truth
+for package metadata and dependencies, instead of maintaining them in both
+`build.mill` and `flix.toml` and letting them drift:
+
+```scala
+object app extends FlixManifestModule {
+  def flixPackageDescription = Task { "A demo project." }
+  def flixPackageVersion = Task { "0.1.0" }
+  def flixLanguageVersion = Task { "0.75.1" }
+  def flixPackageAuthors = Task { Seq("Ada") }
+
+  def flixMvnDeps = Task { Seq(mvn"org.postgresql:postgresql:42.7.3") }
+}
+```
+
+`flixPackageName` defaults to the working directory's name; `flixPackageLicense`
+and `flixPackageRepository` are omitted unless set. `flixDependencies` and
+`flixJarDependencies` take the `[dependencies]` and `[jar-dependencies]` entries
+as pairs.
+
+This is opt-in, and it never overwrites a manifest it did not write. A generated
+`flix.toml` starts with a marker comment, and generation fails rather than
+replacing a file without it — a hand-written manifest can hold metadata that
+exists nowhere else.
+
+A Flix manifest names a dependency by group, artifact, and version only, so a
+cross-versioned dep (`mvn"org::artifact:version"`), an exclusion, or a
+classifier is rejected rather than written out without the part that cannot be
+expressed.
 
 ## Development
 

@@ -365,3 +365,82 @@ to exist in the repository. This supersedes the "Publish under `io.github.wstein
 through the Central portal" line of the publication consensus above; the
 namespace choice itself is unaffected. Revisiting Central publishing is not
 ruled out, but it is out of scope until asked for again.
+
+## Build integration review
+
+The plugin ran Flix but shared nothing with the rest of a Mill build. Package
+metadata and dependencies were declared twice — once in `flix.toml`, once in
+`build.mill` — and a JVM module in the same build had no way to call Flix code.
+
+### Build engineer — Mill owns the manifest, but only when asked (9/10)
+
+A Flix project and the Mill build wrapping it carry the same package metadata
+and the same dependency list. Maintaining both by hand means they drift, and
+the drift is quiet: Flix resolves what its manifest says while Mill reports
+what the build file says, and neither notices the disagreement. `flix.toml`
+should be generated.
+
+It must be opt-in. Every existing project has a hand-written manifest, and
+generating one means writing into the project directory rather than into
+`Task.dest`. Added `FlixManifestModule` as a separate trait, so `FlixModule`
+alone keeps tracking a hand-written file. A generated manifest carries a marker
+comment on its first line and generation *fails* rather than overwriting a
+`flix.toml` without it — a hand-written manifest can hold metadata that exists
+nowhere else, so replacing it silently destroys the only copy.
+
+### Mill maintainer — the write must admit it is a write (8/10)
+
+Mill forbids a task writing outside its `Task.dest`, and this writes into the
+project directory because Flix looks for a manifest only by name in the
+directory it runs in. Suspending the check is the same concession
+`FlixArtifact.outputPathRef` already makes for reading Flix's output, and the
+asymmetry is worth stating: `build/` and `artifact/` land in the project
+directory too and are never caught, because Flix writes them from a subprocess
+the checker cannot see. Observing the rule here would be a difference in who
+holds the pen, not in what is written. Accepted, with that reasoning recorded at
+the call site.
+
+### Dependency maintainer — declare dependencies in Mill's own syntax (9/10)
+
+Taking coordinate strings would have reproduced the duplication the generated
+manifest exists to remove. `flixMvnDeps` takes Mill's `Dep`, so a Flix project
+writes `mvn"org.postgresql:postgresql:42.7.3"` exactly as any other module
+would.
+
+A Flix manifest names a dependency by group, artifact and version and has
+nowhere to put anything else, so a `Dep` carrying more is rejected rather than
+written out shorn of what cannot be expressed. Cross-versioned deps would name
+an artifact that does not exist, since Flix appends no Scala suffix; exclusions
+and classifiers would resolve something other than what the build asked for.
+Refusing is better than either, and each refusal is tested — a guard that is
+never exercised is a guess about an API rather than a check on it.
+
+### Mill maintainer — a classpath entry, not a fake `JavaModule` (9/10)
+
+Making `FlixModule` extend `JavaModule` so it could appear in `moduleDeps` would
+be the "second build model" the original consensus rejected: it would inherit a
+compile/test/publish surface that Flix does not have and cannot honour. Added
+`flixClasspath` instead, so a JVM module writes one line —
+`def unmanagedClasspath = Task { greeter.flixClasspath() }` — and `buildJar`
+beside it for when the artifact leaves the build. What a Java caller finds
+there is whatever the Flix project marked `@Export`.
+
+### Test engineer — compiling is not calling (10/10)
+
+A test that only compiles the Java module would pass against an empty classpath
+entry if the Flix build silently produced nothing. The integration gate now runs
+the JVM module and asserts its output, so the exported class has to be on the
+classpath under the name a Java caller writes.
+
+The fixture is limited to primitive parameters and returns on purpose: the
+pinned Flix release accepts nothing wider in an exported signature, and a
+fixture that only compiles against a newer compiler is not a gate.
+
+## Build integration consensus
+
+Generate `flix.toml` from the Mill build behind an opt-in trait that never
+overwrites a manifest it did not write; declare Flix's Maven dependencies as
+Mill `Dep`s and reject what the manifest cannot express; expose Flix output to
+JVM modules as a classpath entry and a jar rather than by pretending a Flix
+project is a `JavaModule`. The release gate runs a Java module against Flix
+output rather than merely compiling it (consensus 5/5).
