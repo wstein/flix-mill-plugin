@@ -118,6 +118,46 @@ object FlixManifestTests extends TestSuite {
       assert(failure.failed.get.getMessage.contains("flixPackageAuthors"))
     }
 
+    test("turns a Mill dependency into a Flix coordinate") {
+      val dep = mill.javalib.Dep.parse("org.postgresql:postgresql:42.7.3")
+
+      assert(FlixManifest.coordinateOf(dep) == ("org.postgresql:postgresql" -> "42.7.3"))
+    }
+
+    test("rejects a cross-versioned dependency") {
+      // `mvn"org::artifact:version"` resolves to an artifact whose name ends in a Scala
+      // binary-version suffix. Flix appends none, so the coordinate would name something that does
+      // not exist -- and it would fail at resolution time, far from the build file that caused it.
+      val dep = mill.javalib.Dep.parse("com.lihaoyi::os-lib:0.11.8")
+
+      val failure = scala.util.Try(FlixManifest.coordinateOf(dep))
+
+      assert(failure.isFailure)
+      assert(failure.failed.get.getMessage.contains("cross-versioned"))
+    }
+
+    test("rejects a dependency carrying exclusions") {
+      // The manifest has nowhere to put them, so writing the coordinate alone would resolve
+      // something other than what the build asked for.
+      val dep = mill.javalib.Dep
+        .parse("org.postgresql:postgresql:42.7.3")
+        .exclude("org.slf4j" -> "slf4j-api")
+
+      val failure = scala.util.Try(FlixManifest.coordinateOf(dep))
+
+      assert(failure.isFailure)
+      assert(failure.failed.get.getMessage.contains("exclusions"))
+    }
+
+    test("rejects a dependency carrying a classifier") {
+      val dep = mill.javalib.Dep.parse("org.postgresql:postgresql:42.7.3;classifier=linux")
+
+      val failure = scala.util.Try(FlixManifest.coordinateOf(dep))
+
+      assert(failure.isFailure)
+      assert(failure.failed.get.getMessage.contains("classifier"))
+    }
+
     test("writes a manifest when none is present") {
       val directory = os.temp.dir()
       val target = directory / "flix.toml"
