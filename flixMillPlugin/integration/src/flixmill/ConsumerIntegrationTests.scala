@@ -59,9 +59,26 @@ object ConsumerIntegrationTests extends TestSuite {
       assert(packageBuild.isSuccess)
       assert(os.isFile(FlixArtifact.packageFile(project)))
 
+      assertJvmModuleCallsFlixCode(tester, project)
       assertRebuildsAfterOutputRemoval(tester, project)
       assertHonorsWorkingDirectoryOverride(tester, jarPath)
     } finally tester.close()
+  }
+
+  /** A JVM module must be able to compile and run against the Flix module's output.
+    *
+    * This is the whole point of `flixClasspath`, and nothing short of running it shows that the
+    * exported class is on the classpath under the name a Java caller writes. Compiling alone would
+    * pass with an empty classpath entry if the Flix build had silently produced nothing.
+    */
+  private def assertJvmModuleCallsFlixCode(tester: IntegrationTester, project: os.Path): Unit = {
+    val jar = tester.eval("app.buildJar")
+    assert(jar.isSuccess)
+    assert(os.isFile(FlixArtifact.jarFile(project)))
+
+    val run = tester.eval("javaConsumer.run")
+    assert(run.isSuccess)
+    assert(run.out.contains("sum = 42"))
   }
 
   /** A cached `build` must not keep pointing at output that has since been removed. */
