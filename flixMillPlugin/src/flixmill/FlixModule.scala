@@ -103,6 +103,34 @@ trait FlixModule extends Module {
     */
   def flixClasspath = Task { Seq(build()) }
 
+  /** Compile-only Java stubs for the project's `@Export`-ed defs.
+    *
+    * This is pass 0 of joint compilation, and it exists because Flix and Java can reference each
+    * other in a way that has no valid build order: a Java class calling an exported Flix def needs
+    * Flix codegen to have run, while a Flix module calling that Java class needs its class files.
+    * Handing `javac` a stub facade turns the cycle into a sequence.
+    *
+    * Written into `Task.dest` rather than the project directory, because unlike `build/` and
+    * `artifact/` these are Mill's output and not Flix's: they are consumed by a Java compile that
+    * Mill schedules, and they must never survive into anything that runs.
+    *
+    * Deliberately depends on nothing but the sources. Pass 0 runs before the project can compile --
+    * that is the situation it is for -- so it must not wait on `build()`, and `flix stubs` does not
+    * resolve dependencies for the same reason.
+    */
+  def flixStubSources = Task {
+    flixProjectInputs()
+    val destination = Task.dest / "java"
+    FlixCommand.execute(
+      flixJavaExecutable(),
+      flixJar().path,
+      flixWorkingDirectory,
+      "stubs",
+      Seq("--out", destination.toString)
+    )
+    PathRef(destination)
+  }
+
   /** Build the project's JVM `.jar` artifact in its `artifact/` directory.
     *
     * Distinct from [[buildPkg]], which produces the `.fpkg` that other *Flix* projects depend on.
