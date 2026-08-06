@@ -73,5 +73,16 @@
       matchManagers: ['github-runners'],
       enabled: false,
     },
+    {
+      // `mill-libs` for the pinned `millVersion` (1.0.6) bundles Scala 3.7.3 to
+      // compile a consumer's meta-build. A published plugin jar built with a
+      // newer scalaVersion is not binary-compatible on that classpath -- 3.8.4
+      // crashed it with an unhandled compiler exception, caught only by the
+      // release gate's real Mill subprocess, not by `compile` or `test`. See
+      // CLAUDE.md's invariants list. Lift this once `millVersion` moves past a
+      // release whose bundled Scala covers 3.8.x.
+      matchDepNames: ['org.scala-lang:scala3-library_3'],
+      allowedVersions: '<3.8.0',
+    },
   ],
 }
