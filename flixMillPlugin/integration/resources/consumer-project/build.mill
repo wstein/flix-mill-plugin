@@ -3,21 +3,9 @@
 
 package build
 
-import mill.*
-import mill.javalib.JavaModule
 import flixmill.FlixModule
 
 object app extends FlixModule
-
-/** A JVM module consuming the Flix module's compiled output.
-  *
-  * A `FlixModule` is not a `JavaModule`, so it cannot go in `moduleDeps`; `flixClasspath` is the
-  * seam instead. Nothing here is Flix-aware beyond that one line.
-  */
-object javaConsumer extends JavaModule {
-  def unmanagedClasspath = Task { app.flixClasspath() }
-  def mainClass = Some("com.example.App")
-}
 
 /** Exercises a project whose Flix sources live below the Mill module directory. */
 object nested extends FlixModule {

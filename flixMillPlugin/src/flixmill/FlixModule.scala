@@ -81,42 +81,6 @@ trait FlixModule extends Module {
     )
   }
 
-  /** The compiled Flix classes, as a classpath entry for a JVM module.
-    *
-    * A `FlixModule` is not a `JavaModule`, so it cannot appear in another module's `moduleDeps`.
-    * This is what a JVM module in the same build depends on instead:
-    *
-    * {{{
-    * object greeter extends FlixModule
-    *
-    * object app extends JavaModule {
-    *   def unmanagedClasspath = Task { greeter.flixClasspath() }
-    * }
-    * }}}
-    *
-    * What a Java caller finds there is whatever the Flix project marked `@Export`: a class per
-    * module carrying `public static` methods. Flix code that is not exported is compiled into the
-    * same directory but named for the compiler's convenience, so it is not something to call.
-    *
-    * The class directory rather than [[buildJar]], because it needs no packaging step and Mill puts
-    * directories on a classpath as readily as jars. Use the jar when the artifact leaves the build.
-    */
-  def flixClasspath = Task { Seq(build()) }
-
-  /** Build the project's JVM `.jar` artifact in its `artifact/` directory.
-    *
-    * Distinct from [[buildPkg]], which produces the `.fpkg` that other *Flix* projects depend on.
-    * This one is an ordinary jar, for consumers that have no idea Flix was involved.
-    */
-  def buildJar = Task {
-    flixProjectInputs()
-    val projectDirectory = flixWorkingDirectory
-    FlixCommand.execute(flixJavaExecutable(), flixJar().path, projectDirectory, "build-jar")
-    val jarFile = FlixArtifact.jarFile(projectDirectory)
-    require(os.exists(jarFile), s"Flix build-jar completed without creating $jarFile")
-    FlixArtifact.outputPathRef(jarFile)
-  }
-
   /** Build the project's `.fpkg` artifact in its `artifact/` directory. */
   def buildPkg = Task {
     flixProjectInputs()
@@ -177,11 +141,6 @@ private[flixmill] object FlixCommand {
 private[flixmill] object FlixArtifact {
   def packageFile(projectDirectory: os.Path): os.Path =
     projectDirectory / "artifact" / s"${projectDirectory.last}.fpkg"
-
-  /** Flix names the jar after the working directory too, on the same observed contract as `.fpkg`.
-    */
-  def jarFile(projectDirectory: os.Path): os.Path =
-    projectDirectory / "artifact" / s"${projectDirectory.last}.jar"
 
   /** Signature for Flix-owned output that lives outside `Task.dest`.
     *
