@@ -425,6 +425,9 @@ compile/test/publish surface that Flix does not have and cannot honour. Added
 beside it for when the artifact leaves the build. What a Java caller finds
 there is whatever the Flix project marked `@Export`.
 
+This decision was later reversed; see
+[Joint compilation reversal](#joint-compilation-reversal).
+
 ### Test engineer — compiling is not calling (10/10)
 
 A test that only compiles the Java module would pass against an empty classpath
@@ -444,3 +447,47 @@ Mill `Dep`s and reject what the manifest cannot express; expose Flix output to
 JVM modules as a classpath entry and a jar rather than by pretending a Flix
 project is a `JavaModule`. The release gate runs a Java module against Flix
 output rather than merely compiling it (consensus 5/5).
+
+## Joint compilation reversal
+
+Three commits built on the classpath-entry decision above: `flixClasspath` and
+`buildJar` (`feat(flix): expose Flix output to JVM modules in the same build`),
+`flixStubSources` running `flix stubs --out` (`feat: generate export stubs as a
+Mill task`), and `FlixJointModule`, which passed the resulting jars to
+`flix build`/`check` as `--lib <path>` (`feat: compile Java and Flix together
+in one Mill module`). The release gate never ran any of them against the Flix
+CLI this project actually ships against.
+
+### Release engineer — reversed: the CLI surface does not exist (10/10)
+
+`flix --help` on the pinned 0.75.1 release lists no `stubs` subcommand and no
+`--lib` option; passing either exits immediately with `Unknown option`. Every
+`flix.jar` reachable from this machine — the one CI downloads and two others
+kept locally — agrees. The three commits above were designed against a Flix
+build newer than any released or locally available jar, evidently a
+release-candidate CLI surface anticipated ahead of its actual release. This
+document's own "a gate that can abstain is not a gate" is exactly why the
+release gate exists — and it caught the mismatch, the first time it ran with a
+matching `FLIX_JAR` in CI after these commits landed.
+
+### Mill maintainer — a second, independent defect in the same commit (8/10)
+
+Even granting the CLI surface, `FlixJointModule extends FlixModule,
+JavaModule` gave both a concrete `run` with the same erased signature.
+`mill inspect joint.run` resolved to `FlixModule.run`, not `JavaModule.run`, so
+`joint.run` shelled out to `flix run` instead of running the compiled Java
+`mainClass`. `FlixModule.run` never forwarded `flixLibs` either, so the
+failure surfaced as a Flix resolution error with no direct pointer back to the
+naming collision that caused it. A retry of this design needs a task named for
+what it does (`javaRun`, or an explicit override that delegates to the right
+implementation), not two identically-named tasks left to linearization.
+
+### Consensus (revert, 10/10)
+
+Revert all three commits (`675053e`, `4dc1a59`, `7108f58`) rather than patch
+around a CLI that does not exist yet. `flixClasspath`, `buildJar`, and the
+manifest/dependency machinery from the review above are unaffected and stay.
+Redo joint compilation once the target Flix release actually ships `--lib` (or
+whatever its shipped equivalent turns out to be) and `flix stubs`, verified
+against that release's real jar in the integration gate before merging —  not
+against a release candidate.
