@@ -68,6 +68,15 @@ Each of these was a real bug. Breaking one usually still compiles.
   `[package].name` in `flix.toml`. This is an observed contract of the Flix
   release pinned in CI, not a documented guarantee; re-verify it whenever that
   pin moves.
+- **`scalaVersion` must stay binary-compatible with whatever Scala `mill-libs`
+  bundles for the pinned `millVersion`** (3.7.3, for `millVersion = "1.0.6"`).
+  A published plugin jar compiled with a newer Scala crashes the *consumer's*
+  meta-build compiler with an unhandled-exception ABI error — `flixMillPlugin`
+  itself compiles and unit-tests cleanly regardless, so only the release gate's
+  real Mill subprocess (`flixMillPlugin/integration`) catches it. Renovate
+  tracks `scalaVersion` as an ordinary dependency; a bump needs the integration
+  suite run against a real `FLIX_JAR` before merging, not just `compile` +
+  `test`.
 
 `check`, `build`, and `buildPkg` are cached tasks; `test`, `run`, `init`, and
 `flixHelp` are `Task.Command` because they perform user-directed actions.
