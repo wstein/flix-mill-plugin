@@ -23,8 +23,65 @@ trait FlixModule extends Module {
     */
   def flixWorkingDirectory: os.Path = moduleDir
 
-  /** Project-local Flix compiler JAR. */
+  /** A project-local compiler JAR, used in preference to a resolved one when it exists.
+    *
+    * For working on the compiler itself, where the jar is a local build with no release to
+    * resolve. `Task.Source` on a missing path is not an error, so an absent one simply falls
+    * through to [[flixCompiler]].
+    */
   def flixJar = Task.Source(flixWorkingDirectory / "flix.jar")
+
+  /** Where releases are downloaded from.
+    *
+    * Flix ships as an asset on a GitHub release rather than as a Maven artifact, so this is the
+    * repository root. Configurable because a fork publishes to its own.
+    */
+  def flixReleaseUrl: T[String] = Task {
+    "https://github.com/wstein/flix-fork/releases/download"
+  }
+
+  /** The Flix version to compile with.
+    *
+    * Read from the `flix` field of `flix.toml`, so the manifest stays the single place a project
+    * states which compiler it needs -- the same field the compiler itself reads. Override to pin a
+    * different one.
+    *
+    * Parsed with a regex rather than a TOML library: this reads one scalar from a file the
+    * compiler is about to parse properly, and a parse error here would report a manifest problem
+    * in the wrong voice and at the wrong time.
+    */
+  def flixVersion: T[Option[String]] = Task {
+    val manifest = flixManifest().path
+    if (!os.exists(manifest)) None
+    else """(?m)^\s*flix\s*=\s*"([^"]+)"""".r.findFirstMatchIn(os.read(manifest)).map(_.group(1))
+  }
+
+  /** The compiler JAR: the local one when present, otherwise the release for [[flixVersion]].
+    *
+    * Downloaded into `Task.dest`, so Mill caches it against the version and re-fetches only when
+    * that changes. A missing release is reported with the URL that was tried, because the likely
+    * causes -- a version with no release, or a fork that publishes elsewhere -- are both things the
+    * URL makes obvious and a status code does not.
+    */
+  def flixCompiler: T[PathRef] = Task {
+    val local = flixJar()
+    if (os.exists(local.path)) local
+    else
+      flixVersion() match {
+        case None =>
+          sys.error(
+            s"No compiler. Put one at ${flixWorkingDirectory / "flix.jar"}, or declare " +
+              s"'flix = \"<version>\"' in flix.toml."
+          )
+        case Some(version) =>
+          val url = s"${flixReleaseUrl()}/v$version/flix-$version.jar"
+          val destination = Task.dest / s"flix-$version.jar"
+          val response = requests.get(url, check = false)
+          if (!response.is2xx) sys.error(s"Could not download the Flix compiler from $url (HTTP ${response.statusCode}).")
+          os.write.over(destination, response.bytes)
+          PathRef(destination)
+      }
+  }
 
   /** Flix manifest. */
   def flixManifest = Task.Source(flixWorkingDirectory / "flix.toml")
@@ -43,7 +100,7 @@ trait FlixModule extends Module {
   /** Type-check the project without running it. */
   def check = Task {
     flixProjectInputs()
-    FlixCommand.execute(flixJavaExecutable(), flixJar().path, flixWorkingDirectory, "check")
+    FlixCommand.execute(flixJavaExecutable(), flixCompiler().path, flixWorkingDirectory, "check")
     Task.dest
   }
 
@@ -51,7 +108,7 @@ trait FlixModule extends Module {
   def build = Task {
     flixProjectInputs()
     val projectDirectory = flixWorkingDirectory
-    FlixCommand.execute(flixJavaExecutable(), flixJar().path, projectDirectory, "build")
+    FlixCommand.execute(flixJavaExecutable(), flixCompiler().path, projectDirectory, "build")
     val classes = projectDirectory / "build" / "class"
     require(os.exists(classes), s"Flix build completed without creating $classes")
     FlixArtifact.outputPathRef(classes)
@@ -62,7 +119,7 @@ trait FlixModule extends Module {
     flixProjectInputs()
     FlixCommand.execute(
       flixJavaExecutable(),
-      flixJar().path,
+      flixCompiler().path,
       flixWorkingDirectory,
       "test",
       args.value
@@ -74,7 +131,7 @@ trait FlixModule extends Module {
     flixProjectInputs()
     FlixCommand.execute(
       flixJavaExecutable(),
-      flixJar().path,
+      flixCompiler().path,
       flixWorkingDirectory,
       "run",
       args.value
@@ -85,7 +142,7 @@ trait FlixModule extends Module {
   def buildPkg = Task {
     flixProjectInputs()
     val projectDirectory = flixWorkingDirectory
-    FlixCommand.execute(flixJavaExecutable(), flixJar().path, projectDirectory, "build-pkg")
+    FlixCommand.execute(flixJavaExecutable(), flixCompiler().path, projectDirectory, "build-pkg")
     val packageFile = FlixArtifact.packageFile(projectDirectory)
     require(os.exists(packageFile), s"Flix build-pkg completed without creating $packageFile")
     FlixArtifact.outputPathRef(packageFile)
@@ -95,7 +152,7 @@ trait FlixModule extends Module {
   def init(args: Args) = Task.Command {
     FlixCommand.execute(
       flixJavaExecutable(),
-      flixJar().path,
+      flixCompiler().path,
       flixWorkingDirectory,
       "init",
       args.value
@@ -106,7 +163,7 @@ trait FlixModule extends Module {
   def flixHelp(args: Args) = Task.Command {
     FlixCommand.execute(
       flixJavaExecutable(),
-      flixJar().path,
+      flixCompiler().path,
       flixWorkingDirectory,
       "--help",
       args.value

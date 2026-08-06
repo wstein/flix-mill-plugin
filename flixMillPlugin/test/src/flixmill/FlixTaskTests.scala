@@ -93,6 +93,36 @@ object FlixTaskTests extends TestSuite {
       }
     }
 
+    test("takes the compiler version from the manifest") {
+      // The manifest already states which compiler a project needs, and the compiler itself reads
+      // that field. Declaring it a second time in the build is a second place to get it wrong.
+      UnitTester(defaultProject, os.temp.dir()).scoped { eval =>
+        os.write.over(
+          defaultProject.moduleDir / "flix.toml",
+          """[package]
+            |name = "p"
+            |flix = "0.75.1"
+            |""".stripMargin,
+          createFolders = true
+        )
+        assert(evaluated(eval(defaultProject.flixVersion)).value.contains("0.75.1"))
+      }
+    }
+
+    test("reports no version rather than a wrong one") {
+      // A manifest that does not name a compiler must not resolve some default: the failure has to
+      // say what is missing, and it is the only thing standing between a build and a silently
+      // mismatched compiler.
+      UnitTester(defaultProject, os.temp.dir()).scoped { eval =>
+        os.write.over(
+          defaultProject.moduleDir / "flix.toml",
+          "[package]\nname = \"p\"\n",
+          createFolders = true
+        )
+        assert(evaluated(eval(defaultProject.flixVersion)).value.isEmpty)
+      }
+    }
+
     test("moves every tracked and generated path with the working directory") {
       UnitTester(nestedProject, os.temp.dir()).scoped { eval =>
         val workingDirectory = nestedProject.app.flixWorkingDirectory
