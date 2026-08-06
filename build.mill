@@ -9,7 +9,7 @@ object flixMillPlugin extends ScalaModule, PublishModule, ScalafmtModule {
   /** The oldest Mill 1.x version supported by the published plugin artifact. */
   def millVersion = "1.0.6"
 
-  def scalaVersion = "3.8.4"
+  def scalaVersion = "3.7.4"
   def jvmVersion = "21"
   def scalacOptions = Seq("-Werror", "-Wunused:all")
 
