@@ -60,6 +60,7 @@ object ConsumerIntegrationTests extends TestSuite {
       assert(os.isFile(FlixArtifact.packageFile(project)))
 
       assertJvmModuleCallsFlixCode(tester, project)
+      assertJointCompilation(tester, jarPath)
       assertRebuildsAfterOutputRemoval(tester, project)
       assertHonorsWorkingDirectoryOverride(tester, jarPath)
     } finally tester.close()
@@ -79,6 +80,30 @@ object ConsumerIntegrationTests extends TestSuite {
     val run = tester.eval("javaConsumer.run")
     assert(run.isSuccess)
     assert(run.out.contains("sum = 42"))
+  }
+
+  /** Java and Flix must compile when they reference each other inside one module.
+    *
+    * There is no build order for this without generated stubs: `Helper` calls the Flix facade and
+    * the Flix module calls `Helper`. Running it is what makes the test evidence -- the stub facade
+    * throws on every call, so output that reads back correctly can only have come from the real
+    * one.
+    */
+  private def assertJointCompilation(tester: IntegrationTester, jarPath: String): Unit = {
+    val project = tester.workspacePath / "joint"
+    os.copy.over(os.Path(jarPath, os.pwd), project / "flix.jar", createFolders = true)
+
+    val run = tester.eval("joint.run")
+    assert(run.isSuccess)
+    assert(run.out.contains("Hello, Mill!")) // Java called Flix.
+    assert(run.out.contains("HELLO")) // Flix called Java.
+
+    // The stub classes must reach no run classpath. They would shadow the real facade, and every
+    // exported call would throw instead of running -- which the assertions above would catch, but
+    // only for the two methods they happen to exercise.
+    val runClasspath = tester.eval(("show", "joint.runClasspath"))
+    assert(runClasspath.isSuccess)
+    assert(!runClasspath.out.contains("flixStubs"))
   }
 
   /** A cached `build` must not keep pointing at output that has since been removed. */
