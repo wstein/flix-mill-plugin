@@ -5,7 +5,7 @@ package build
 
 import mill.*
 import mill.javalib.JavaModule
-import flixmill.{FlixJointModule, FlixModule}
+import flixmill.FlixModule
 
 object app extends FlixModule
 
@@ -16,16 +16,6 @@ object app extends FlixModule
   */
 object javaConsumer extends JavaModule {
   def unmanagedClasspath = Task { app.flixClasspath() }
-  def mainClass = Some("com.example.App")
-}
-
-/** Java and Flix referencing each other inside one module.
-  *
-  * `javaConsumer` above is the one-way case: Java depends on Flix and nothing depends back. This
-  * one has no valid build order without generated stubs -- `Helper` calls the Flix facade and the
-  * Flix module calls `Helper`.
-  */
-object joint extends FlixJointModule {
   def mainClass = Some("com.example.App")
 }
 

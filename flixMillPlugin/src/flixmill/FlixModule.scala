@@ -40,29 +40,10 @@ trait FlixModule extends Module {
     flixSourceDirectories()
   }
 
-  /** Jars placed on the Flix compile classpath, passed as `--lib`.
-    *
-    * A project's own dependencies belong in `flix.toml`; these are for jars the *build* produced,
-    * which the package managers know nothing about and which have nowhere to live under `lib/`.
-    * Empty here, and filled in by [[FlixJointModule]], where the Java classes Flix compiles against
-    * exist only as build output.
-    */
-  def flixLibs: T[Seq[PathRef]] = Task { Seq.empty[PathRef] }
-
-  /** `--lib` arguments for [[flixLibs]]. */
-  private def libArguments(libs: Seq[PathRef]): Seq[String] =
-    libs.flatMap(lib => Seq("--lib", lib.path.toString))
-
   /** Type-check the project without running it. */
   def check = Task {
     flixProjectInputs()
-    FlixCommand.execute(
-      flixJavaExecutable(),
-      flixJar().path,
-      flixWorkingDirectory,
-      "check",
-      libArguments(flixLibs())
-    )
+    FlixCommand.execute(flixJavaExecutable(), flixJar().path, flixWorkingDirectory, "check")
     Task.dest
   }
 
@@ -70,13 +51,7 @@ trait FlixModule extends Module {
   def build = Task {
     flixProjectInputs()
     val projectDirectory = flixWorkingDirectory
-    FlixCommand.execute(
-      flixJavaExecutable(),
-      flixJar().path,
-      projectDirectory,
-      "build",
-      libArguments(flixLibs())
-    )
+    FlixCommand.execute(flixJavaExecutable(), flixJar().path, projectDirectory, "build")
     val classes = projectDirectory / "build" / "class"
     require(os.exists(classes), s"Flix build completed without creating $classes")
     FlixArtifact.outputPathRef(classes)

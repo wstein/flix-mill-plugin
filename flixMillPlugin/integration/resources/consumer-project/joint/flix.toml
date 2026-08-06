@@ -1,6 +1,0 @@
-[package]
-name = "joint"
-description = "Java and Flix referencing each other in one module"
-version = "0.1.0"
-flix = "0.60.0"
-authors = ["flix-mill-plugin"]
