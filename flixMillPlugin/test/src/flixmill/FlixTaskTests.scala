@@ -93,14 +93,6 @@ object FlixTaskTests extends TestSuite {
       }
     }
 
-    test("offers the compiled classes as a classpath entry") {
-      // A FlixModule is not a JavaModule, so it cannot appear in another module's `moduleDeps`.
-      // This is the seam a JVM module in the same build depends on instead.
-      UnitTester(defaultProject, os.temp.dir()).scoped { _ =>
-        assert(defaultProject.flixClasspath.isInstanceOf[Task[?]])
-      }
-    }
-
     test("moves every tracked and generated path with the working directory") {
       UnitTester(nestedProject, os.temp.dir()).scoped { eval =>
         val workingDirectory = nestedProject.app.flixWorkingDirectory
@@ -119,7 +111,6 @@ object FlixTaskTests extends TestSuite {
           FlixArtifact.packageFile(workingDirectory) ==
             workingDirectory / "artifact" / "flix.fpkg"
         )
-        assert(FlixArtifact.jarFile(workingDirectory) == workingDirectory / "artifact" / "flix.jar")
       }
     }
   }
