@@ -91,7 +91,9 @@ cached tasks track `flix.toml`, `src/`, `test/`, and the compiler JAR; edits to
 generated `build/` and `artifact/` output do not invalidate them. Override
 `flixSourceDirectories` when a project has additional source roots.
 
-`build` and `buildPkg` return their validated Flix-owned output as a
+`build` reads the compiler's format-4 `build/development/build.json` and returns the first entry
+of `launch.runtimeClasspath`, rather than assuming a legacy class directory. `build` and
+`buildPkg` return their validated Flix-owned output as a
 `PathRef` under the Flix working directory; `buildPkg` returns
 `artifact/<working-directory-name>.fpkg`. Neither is a Mill-owned `Task.dest`
 output. Those `PathRef`s are revalidated when Mill reads a cached result back,

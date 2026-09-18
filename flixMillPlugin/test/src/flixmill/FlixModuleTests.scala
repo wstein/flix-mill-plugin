@@ -70,5 +70,26 @@ object FlixModuleTests extends TestSuite {
         }
       }
     }
+
+    test("reads the development class directory from a format-4 build manifest") {
+      withProject { project =>
+        val classes = project / "build" / "development" / "class"
+        val manifest = FlixArtifact.developmentManifest(project)
+        os.write(
+          manifest,
+          ujson.write(
+            ujson.Obj(
+              "formatVersion" -> 4,
+              "launch" -> ujson.Obj("runtimeClasspath" -> ujson.Arr(classes.toString))
+            )
+          ),
+          createFolders = true
+        )
+
+        os.checker.withValue(RejectingChecker) {
+          assert(FlixArtifact.developmentClassDirectory(project) == classes)
+        }
+      }
+    }
   }
 }

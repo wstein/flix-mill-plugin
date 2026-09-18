@@ -25,7 +25,8 @@ object FlixCliIntegrationTests extends TestSuite {
       invoke(project, "run")
       invoke(project, "build-pkg")
 
-      assert(os.isDir(project / "build" / "class"))
+      assert(os.isDir(FlixArtifact.developmentClassDirectory(project)))
+      assert(os.isFile(FlixArtifact.developmentManifest(project)))
       assert(os.isFile(FlixArtifact.packageFile(project)))
     } finally os.remove.all(project)
   }

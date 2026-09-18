@@ -90,7 +90,9 @@ classpath, and classes using the normal JVM-module contract.
 ### Flix tooling engineer — preserve `build` (10/10)
 
 Flix documents `check` as the faster validation command and `build` as the
-bytecode-generating command. The observed compiler output is `build/class`.
+bytecode-generating command. Current compilers publish a format-4 manifest at
+`build/development/build.json`; its first `launch.runtimeClasspath` entry is
+the generated class directory.
 The plugin should expose those names directly and return the validated Flix
 output path, not a fabricated Mill compilation result. `build-pkg` writes
 `artifact/<project-directory>.fpkg`; the name is based on the project directory,

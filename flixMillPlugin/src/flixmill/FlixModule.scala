@@ -25,9 +25,9 @@ trait FlixModule extends Module {
 
   /** A project-local compiler JAR, used in preference to a resolved one when it exists.
     *
-    * For working on the compiler itself, where the jar is a local build with no release to
-    * resolve. `Task.Source` on a missing path is not an error, so an absent one simply falls
-    * through to [[flixCompiler]].
+    * For working on the compiler itself, where the jar is a local build with no release to resolve.
+    * `Task.Source` on a missing path is not an error, so an absent one simply falls through to
+    * [[flixCompiler]].
     */
   def flixJar = Task.Source(flixWorkingDirectory / "flix.jar")
 
@@ -46,9 +46,9 @@ trait FlixModule extends Module {
     * states which compiler it needs -- the same field the compiler itself reads. Override to pin a
     * different one.
     *
-    * Parsed with a regex rather than a TOML library: this reads one scalar from a file the
-    * compiler is about to parse properly, and a parse error here would report a manifest problem
-    * in the wrong voice and at the wrong time.
+    * Parsed with a regex rather than a TOML library: this reads one scalar from a file the compiler
+    * is about to parse properly, and a parse error here would report a manifest problem in the
+    * wrong voice and at the wrong time.
     */
   def flixVersion: T[Option[String]] = Task {
     val manifest = flixManifest().path
@@ -77,7 +77,10 @@ trait FlixModule extends Module {
           val url = s"${flixReleaseUrl()}/v$version/flix-$version.jar"
           val destination = Task.dest / s"flix-$version.jar"
           val response = requests.get(url, check = false)
-          if (!response.is2xx) sys.error(s"Could not download the Flix compiler from $url (HTTP ${response.statusCode}).")
+          if (!response.is2xx)
+            sys.error(
+              s"Could not download the Flix compiler from $url (HTTP ${response.statusCode})."
+            )
           os.write.over(destination, response.bytes)
           PathRef(destination)
       }
@@ -109,7 +112,7 @@ trait FlixModule extends Module {
     flixProjectInputs()
     val projectDirectory = flixWorkingDirectory
     FlixCommand.execute(flixJavaExecutable(), flixCompiler().path, projectDirectory, "build")
-    val classes = projectDirectory / "build" / "class"
+    val classes = FlixArtifact.developmentClassDirectory(projectDirectory)
     require(os.exists(classes), s"Flix build completed without creating $classes")
     FlixArtifact.outputPathRef(classes)
   }
@@ -210,7 +213,8 @@ private[flixmill] object FlixCommand {
       subcommand: String,
       args: Seq[String] = Seq.empty
   ): Unit = {
-    val invocation = os.proc(arguments(javaExecutable, jar, subcommand, args :+ "--diagnostics-json"))
+    val invocation = os
+      .proc(arguments(javaExecutable, jar, subcommand, args :+ "--diagnostics-json"))
       .call(cwd = workingDirectory, stdout = os.Pipe, stderr = os.Inherit, check = false)
 
     FlixDiagnostics.parse(invocation.out.text()) match {
@@ -248,12 +252,12 @@ private[flixmill] case class FlixDiagnostic(
 
   /** `file:line:column: CODE: message`, the form editors and CI logs linkify.
     *
-    * The protocol's positions are LSP's and so zero-based, while a person reading a log expects
-    * the numbers the compiler itself prints. This is the only place that conversion happens.
+    * The protocol's positions are LSP's and so zero-based, while a person reading a log expects the
+    * numbers the compiler itself prints. This is the only place that conversion happens.
     */
   def render: String = path match {
     case Some(p) => s"$p:${line + 1}:${character + 1}: ${code.getOrElse("error")}: $message"
-    case None => s"${code.getOrElse("error")}: $message"
+    case None    => s"${code.getOrElse("error")}: $message"
   }
 }
 
@@ -286,8 +290,29 @@ private[flixmill] object FlixDiagnostics {
 }
 
 private[flixmill] object FlixArtifact {
+  private val BuildManifestFormat = 4
+
   def packageFile(projectDirectory: os.Path): os.Path =
     projectDirectory / "artifact" / s"${projectDirectory.last}.fpkg"
+
+  def developmentManifest(projectDirectory: os.Path): os.Path =
+    projectDirectory / "build" / "development" / "build.json"
+
+  /** Returns the compiler-reported class directory from its format-4 launch specification. */
+  def developmentClassDirectory(projectDirectory: os.Path): os.Path = {
+    val manifest = developmentManifest(projectDirectory)
+    require(os.isFile(manifest), s"Flix build completed without creating $manifest")
+
+    val document = FilesystemCheckerEnabled.withValue(false)(ujson.read(os.read(manifest)))
+    val version = document.obj.get("formatVersion").map(_.num.toInt)
+    require(
+      version.contains(BuildManifestFormat),
+      s"Expected Flix build manifest format $BuildManifestFormat, got ${version.getOrElse("missing")} in $manifest"
+    )
+    val classpath = document("launch")("runtimeClasspath").arr
+    require(classpath.nonEmpty, s"Flix build manifest has no runtime classpath: $manifest")
+    os.Path(classpath.head.str)
+  }
 
   /** Signature for Flix-owned output that lives outside `Task.dest`.
     *
