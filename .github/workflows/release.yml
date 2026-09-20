@@ -16,7 +16,7 @@ permissions:
 
 env:
   FORCE_COLOR: '1'
-  FLIX_VERSION: 0.75.1
+  FLIX_VERSION: 0.76.2
 
 jobs:
   publish:
