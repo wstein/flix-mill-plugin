@@ -4,14 +4,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Mill](https://img.shields.io/badge/Mill-1.x-brightgreen)](https://mill-build.org)
 [![Java](https://img.shields.io/badge/Java-21%2B-orange)](https://adoptium.net)
-[![Flix](https://img.shields.io/badge/Flix-0.75.1-blueviolet)](https://flix.dev)
+[![Flix](https://img.shields.io/badge/Flix-0.76.2-blueviolet)](https://flix.dev)
 
 Mill support for [Flix](https://flix.dev) projects. The plugin executes the
 official `flix.jar` command-line interface from a Mill module.
 
 ## Status
 
-The plugin is implemented, tested against Flix 0.75.1, and published for Mill
+The plugin is implemented, tested against Flix 0.76.2, and published for Mill
 1.x as `io.github.wstein:flix-mill-plugin_mill1_3` to a
 [GitHub Pages Maven repository](https://wstein.github.io/flix-mill-plugin/) --
 not Maven Central. See [Use in a Mill build](#use-in-a-mill-build).

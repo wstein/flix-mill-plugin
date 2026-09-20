@@ -19,7 +19,7 @@ env:
   # The Flix release the consumer gate builds against. The `.fpkg` naming rule the
   # plugin relies on is an observed contract of this release, so the version is
   # pinned rather than tracking `releases/latest`.
-  FLIX_VERSION: 0.75.1
+  FLIX_VERSION: 0.76.2
 
 jobs:
   build:
